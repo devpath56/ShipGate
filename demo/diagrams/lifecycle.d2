@@ -1,0 +1,26 @@
+# Slide 6 — the change lifecycle, read from server/engine.ts (submit, approve, ship, resolveFinding).
+# States are server/domain.ts STATES. Every arrow is a branch that code takes; every one appends a
+# ledger event, refused ones included. Laid out as a grid so it fits a 16:9 slide: the happy path on
+# top, the enforcement detour underneath.
+...@theme.d2
+grid-rows: 2
+grid-columns: 4
+horizontal-gap: 170
+vertical-gap: 150
+
+DRAFT: DRAFT {class: box}
+IN_REVIEW: IN_REVIEW {class: box}
+APPROVED: APPROVED {class: box}
+SHIPPED: SHIPPED {class: good}
+gap1: "" {style.opacity: 0}
+BLOCKED: BLOCKED {class: bad}
+RESOLVED: RESOLVED {class: hot}
+gap2: "" {style.opacity: 0}
+
+DRAFT -> IN_REVIEW: submit {class: flow}
+IN_REVIEW -> APPROVED: "gate allows" {class: flow}
+IN_REVIEW -> BLOCKED: "refused · enforced" {class: flow-bad}
+BLOCKED -> RESOLVED: "owner resolves\nwith a note" {class: flow-hot}
+RESOLVED -> APPROVED: "re-approve" {class: flow}
+APPROVED -> SHIPPED: ship {class: flow}
+APPROVED -> BLOCKED: "ship refused" {class: flow-bad}

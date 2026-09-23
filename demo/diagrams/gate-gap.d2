@@ -1,0 +1,12 @@
+# Slide 4 — every stage after the spec has a gate; the spec has none.
+...@theme.d2
+direction: right
+
+spec: Spec {class: hot}
+code: Code {class: box}
+build: Build {class: box}
+ship: Ship {class: box}
+
+spec -> code: "no gate ?" {class: flow-hot; style.stroke-dash: 5}
+code -> build: "review gate" {class: flow}
+build -> ship: "test gate" {class: flow}

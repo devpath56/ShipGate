@@ -1,0 +1,13 @@
+# Close slide — the evidence CHG-1042 carries, read from server/ledger.ts: each event's hash covers
+# its own fields plus the previous event's hash, so editing any past event breaks every later link.
+...@theme.d2
+direction: right
+
+blocked: "approve · refused\nIN_REVIEW → BLOCKED\nApprover" {class: bad}
+resolved: "resolve F-2001 · note\nBLOCKED → RESOLVED\nSecurity Owner" {class: hot}
+approved: "approve\nRESOLVED → APPROVED\nApprover" {class: box}
+shipped: "ship\nAPPROVED → SHIPPED\nApprover" {class: good}
+
+blocked -> resolved: "prev_hash" {class: flow-hot}
+resolved -> approved: "prev_hash" {class: flow-hot}
+approved -> shipped: "prev_hash" {class: flow-hot}

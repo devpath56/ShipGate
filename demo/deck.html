@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShipGate Demo Deck</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Palette read from https://hackathon.softwareforge.ai/docs/introduction on 2026-09-23:
+   --accent #FFB028, --accent-hover #FFDC42, --accent-soft rgba(255,176,40,.12), --text-primary #FAF5F4,
+   body background rgb(14,14,15), font DM Sans. The deck is dark only: it is a recording surface. */
+:root {
+  --bg: #0E0E0F;
+  --panel: #17171A;
+  --panel-2: #1F1F23;
+  --line: #2C2C31;
+  --text: #FAF5F4;
+  --muted: #A9A4A2;
+  --faint: #6F6B6A;
+  --accent: #FFB028;
+  --accent-hi: #FFDC42;
+  --accent-soft: rgba(255, 176, 40, .12);
+  --accent-glow: rgba(255, 176, 40, .35);
+  --critical: #FF5A4E;
+  --critical-soft: rgba(255, 90, 78, .14);
+  --ok: #5BD68A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #000; color: var(--text); font-family: "DM Sans", system-ui, sans-serif; overflow: hidden; }
+body.idle { cursor: none; }
+
+/* A fixed 1920x1080 stage, scaled to fit whatever window records it. */
+#viewport { position: fixed; inset: 0; }
+#stage { width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%; background: var(--bg); transform-origin: center; transform: translate(-50%, -50%); overflow: hidden; }
+.slide { position: absolute; inset: 0; padding: 110px 140px; display: flex; flex-direction: column; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .5s ease; }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide::before { content: ""; position: absolute; inset: 0; background: radial-gradient(900px 600px at 85% 110%, rgba(255,176,40,.07), transparent 70%); pointer-events: none; }
+
+/* Stepped reveals: anything with data-step appears when the slide reaches that step. */
+[data-step] { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s cubic-bezier(.2,.7,.2,1); }
+[data-step].in { opacity: 1; transform: none; }
+
+.eyebrow { font: 500 26px/1 "DM Mono", ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 36px; }
+h1 { font-weight: 800; font-size: 120px; line-height: 1.02; letter-spacing: -.035em; }
+h2 { font-weight: 700; font-size: 84px; line-height: 1.06; letter-spacing: -.03em; }
+.accent { color: var(--accent); }
+.muted { color: var(--muted); }
+.mono { font-family: "DM Mono", ui-monospace, monospace; }
+.corner { position: absolute; left: 140px; bottom: 56px; font: 400 22px/1 "DM Mono", monospace; color: var(--faint); letter-spacing: .06em; }
+.corner-r { position: absolute; right: 140px; bottom: 56px; font: 400 22px/1 "DM Mono", monospace; color: var(--faint); }
+
+/* ---------- Slide 0: title ---------- */
+.mark { width: 96px; height: 96px; border-radius: 22px; background: var(--accent-soft); border: 2px solid var(--accent); display: grid; place-items: center; margin-bottom: 48px; box-shadow: 0 0 60px var(--accent-glow); }
+.mark svg { width: 52px; height: 52px; }
+
+/* ---------- Slide 1: legacy CAB ---------- */
+.legacy { display: grid; grid-template-columns: 560px 1fr; gap: 56px; align-items: start; margin-top: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 30px 34px; }
+.invite .when { font: 500 22px/1 "DM Mono", monospace; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.invite h3 { font-size: 40px; font-weight: 700; margin: 18px 0 22px; letter-spacing: -.02em; }
+.invite .row { display: flex; justify-content: space-between; font-size: 26px; color: var(--muted); padding: 14px 0; border-top: 1px solid var(--line); }
+.invite .row b { color: var(--text); font-weight: 600; }
+.recur { display: inline-block; margin-top: 18px; font: 500 20px/1 "DM Mono", monospace; color: var(--faint); }
+.thread { display: flex; flex-direction: column; gap: 18px; }
+.mail { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 28px; font-size: 25px; line-height: 1.4; }
+.mail .hdr { display: flex; justify-content: space-between; font: 400 20px/1.2 "DM Mono", monospace; color: var(--faint); margin-bottom: 10px; }
+.mail .subj { font-weight: 700; font-size: 26px; margin-bottom: 6px; }
+.finding { border-color: rgba(255,90,78,.5); background: linear-gradient(0deg, var(--critical-soft), var(--critical-soft)), var(--panel); }
+.sev { display: inline-block; font: 700 18px/1 "DM Mono", monospace; letter-spacing: .1em; padding: 7px 10px; border-radius: 6px; background: var(--critical); color: #1a0705; margin-right: 12px; vertical-align: 3px; }
+.tag-info { display: inline-block; font: 500 18px/1 "DM Mono", monospace; letter-spacing: .08em; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--faint); color: var(--muted); margin-left: 10px; vertical-align: 3px; }
+.lgtm { position: relative; }
+.stamp { position: absolute; right: 48px; top: 62%; transform: translateY(-50%) rotate(-8deg); font: 800 44px/1 "DM Sans"; letter-spacing: .08em; color: var(--accent); border: 5px solid var(--accent); border-radius: 10px; padding: 10px 20px; opacity: .92; }
+
+/* ---------- Slide 2: the five flashes ---------- */
+.flash-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+.flash-head h2 { font-size: 72px; }
+.meter { display: flex; align-items: center; gap: 18px; font: 500 22px/1 "DM Mono", monospace; color: var(--muted); letter-spacing: .08em; }
+.meter .bar { width: 320px; height: 10px; border-radius: 5px; background: var(--panel-2); overflow: hidden; }
+.meter .fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--critical)); transition: width .6s ease; }
+.pile { position: relative; flex: 1; }
+.flash { position: absolute; width: 1180px; background: #fff; border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06); overflow: hidden; }
+.flash .crop { position: relative; overflow: hidden; background: #fff; }
+.flash .crop img { position: absolute; display: block; }
+.flash .src { background: var(--panel); color: var(--text); font: 500 21px/1.3 "DM Mono", monospace; padding: 14px 22px; display: flex; justify-content: space-between; gap: 20px; border-top: 2px solid var(--accent); }
+.flash .src span:last-child { color: var(--muted); }
+.flash[data-step] { transform: translateY(40px) scale(.96) rotate(var(--r, 0deg)); }
+.flash[data-step].in { transform: rotate(var(--r, 0deg)); }
+/* Only the newest flash is read; the ones beneath recede so the pile reads as escalation, not clutter. */
+.flash.past { filter: brightness(.38) saturate(.6); }
+.flash { transition: opacity .55s ease, transform .55s cubic-bezier(.2,.7,.2,1), filter .5s ease; }
+
+/* ---------- Slide 3/4: the turn ---------- */
+.stack > * + * { margin-top: 34px; }
+.big-quote { font-size: 96px; font-weight: 800; letter-spacing: -.035em; line-height: 1.04; }
+.pipeline { display: flex; align-items: center; margin-top: 90px; gap: 0; }
+.stage-box { width: 250px; height: 118px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); display: grid; place-items: center; font-size: 34px; font-weight: 700; position: relative; }
+.stage-box.spec { border: 2px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+.conn { width: 150px; height: 2px; background: var(--line); position: relative; }
+.gate { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 20px; height: 84px; border-radius: 5px; background: var(--ok); box-shadow: 0 0 18px rgba(91,214,138,.4); }
+.gate.missing { background: transparent; border: 3px dashed var(--accent); box-shadow: 0 0 40px var(--accent-glow); width: 34px; }
+.gate-label { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 500 20px/1 "DM Mono", monospace; color: var(--muted); }
+.gate.missing + .gate-label { color: var(--accent); font-weight: 700; font-size: 26px; }
+
+/* ---------- Slide 5: the seam ---------- */
+.seam { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+.doc { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+.doc .crop { position: relative; overflow: hidden; }
+.doc .crop img { position: absolute; display: block; }
+.doc .src { background: var(--panel); font: 500 20px/1.3 "DM Mono", monospace; color: var(--muted); padding: 14px 22px; border-top: 2px solid var(--accent); }
+.pull { font-size: 54px; font-weight: 700; line-height: 1.16; letter-spacing: -.02em; border-left: 8px solid var(--accent); padding-left: 36px; }
+.pull em { font-style: normal; color: var(--accent); }
+
+/* ---------- Slide 6: hand-off to the app ---------- */
+.chg { display: inline-flex; align-items: center; gap: 26px; background: var(--panel); border: 1px solid rgba(255,90,78,.5); border-radius: 18px; padding: 30px 38px; margin-top: 50px; font-size: 38px; font-weight: 700; }
+.chg .id { font-family: "DM Mono", monospace; color: var(--accent); }
+
+/* ---------- D2 diagrams: rendered from demo/diagrams/*.d2, never drawn by hand ---------- */
+img.d2 { display: block; max-width: 100%; height: auto; }
+.d2-src { margin-top: 12px; font: 400 18px/1 "DM Mono", monospace; color: var(--faint); letter-spacing: .04em; }
+
+/* ---------- Slide 7/8: close ---------- */
+.tagline { font-size: 88px; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; }
+.sub { font-size: 40px; color: var(--muted); line-height: 1.35; max-width: 1400px; }
+.arrowline { display: flex; align-items: center; gap: 30px; font-size: 40px; font-weight: 600; }
+.pill { padding: 14px 26px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
+.pill.hot { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.final { font-size: 150px; font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+.final .accent { text-shadow: 0 0 80px var(--accent-glow); }
+
+/* ---------- Chrome: progress, notes, help ---------- */
+#progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--accent); transition: width .4s ease; }
+body.recording #progress { display: none; }
+#notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 38vh; overflow: auto; background: rgba(14,14,15,.96); border-top: 2px solid var(--accent); padding: 20px 28px 26px; font-size: 17px; line-height: 1.55; color: var(--text); display: none; z-index: 5; }
+#notes.show { display: block; }
+#notes .meta { font: 500 13px/1 "DM Mono", monospace; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+#notes .caveat { margin-top: 12px; color: var(--muted); font-size: 15px; }
+#help { position: fixed; top: 16px; right: 16px; background: rgba(23,23,26,.96); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; font: 14px/1.8 "DM Mono", monospace; color: var(--muted); z-index: 6; display: none; }
+#help.show { display: block; }
+#help b { color: var(--accent); font-weight: 500; display: inline-block; min-width: 88px; }
+
+/* ---------- Presenter window ---------- */
+body.presenter { overflow: auto; background: var(--bg); }
+body.presenter #viewport { display: none; }
+#presenter { display: none; padding: 32px 40px; max-width: 1100px; margin: 0 auto; }
+body.presenter #presenter { display: block; }
+#presenter .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; font: 500 16px/1 "DM Mono", monospace; color: var(--muted); }
+#presenter .beat { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+#presenter .script { font-size: 26px; line-height: 1.55; margin: 18px 0; }
+#presenter .caveat { font-size: 17px; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 14px; margin-top: 12px; }
+#presenter .next { margin-top: 30px; font-size: 18px; color: var(--faint); }
+#presenter .clock { font: 700 40px/1 "DM Mono", monospace; color: var(--accent); }
+#presenter button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; font: 500 16px "DM Sans"; cursor: pointer; margin-right: 8px; }
+#presenter button:hover { border-color: var(--accent); color: var(--accent-hi); }
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+  <!-- 0 · Title — hold on this while the recorder starts; cut it in the edit if unwanted. -->
+  <section class="slide" data-beat="Title card (pre-roll)" data-time="—">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#FFB028" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5M20 21V5M4 11h16"/><path d="M9 11v10M15 11v10"/></svg></div>
+    <div class="eyebrow">SF Enterprise Hackathon 2.0 · Legacy Modernization</div>
+    <h1>ShipGate</h1>
+    <p class="sub" style="margin-top:28px">The gate at the spec layer. <span class="accent">Built on Opsera Forge.</span></p>
+    <script type="text/notes">No narration. Hold here while the recorder starts, then press → to begin at 0:00.</script>
+  </section>
+
+  <!-- 1 · 0:00–0:20 Legacy hook -->
+  <section class="slide" data-beat="Legacy hook" data-time="0:00–0:20">
+    <div class="eyebrow">Today · how production changes get approved</div>
+    <div class="legacy">
+      <div class="card invite" data-step="1">
+        <div class="when">Thu · 9:00 · 55 min</div>
+        <h3>Weekly Change Advisory Board</h3>
+        <div class="row"><span>Attendees</span><b>14</b></div>
+        <div class="row"><span>Changes, approved as a batch</span><b>31</b></div>
+        <div class="row"><span>Security findings</span><b>attached</b></div>
+        <span class="recur">↻ repeats every Thursday</span>
+      </div>
+      <div class="thread">
+        <div class="mail" data-step="2">
+          <div class="hdr"><span>From: Release Management</span><span>Wed 16:42</span></div>
+          <div class="subj">RE: RE: RE: CAB batch — 31 changes for Thursday</div>
+          <div class="muted">Change list attached. Reply-all with objections by EOD, otherwise approved in the meeting.</div>
+        </div>
+        <div class="mail finding" data-step="3">
+          <div class="hdr"><span>From: Security scanner digest</span><span>Wed 17:05</span></div>
+          <div><span class="sev">CRITICAL</span><b>CHG-1042 · Add vendor export API</b><span class="tag-info">INFORMATIONAL</span></div>
+          <div class="muted" style="margin-top:8px">Secret handling: live credential detected in generated specification.</div>
+        </div>
+        <div class="mail lgtm" data-step="4">
+          <div class="hdr"><span>From: Approver</span><span>Thu 9:52</span></div>
+          <div class="subj">RE: RE: RE: RE: CAB batch</div>
+          <div>LGTM, approved — findings are informational.</div>
+          <div class="stamp">APPROVED</div>
+        </div>
+      </div>
+    </div>
+    <div class="corner">Legacy process · illustrative mock</div>
+    <script type="text/notes">"Every Thursday, fourteen people get on a call and rubber-stamp thirty-one production changes over email. The security findings? They're informational. If you've ever sat in that meeting, you already know how this story ends."
+Steps: → invite · → release email · → the CRITICAL finding, marked informational · → LGTM + APPROVED stamp (land it on "how this story ends").
+The numbers match the app's Legacy view: Thursday 9:00, 14 attendees, 55 min, 31 changes.</script>
+  </section>
+
+  <!-- 2 · 0:20–0:50 Log4Shell: five flashes, escalating -->
+  <section class="slide" data-beat="The story: Log4Shell" data-time="0:20–0:50" style="justify-content:flex-start; padding-top:90px">
+    <div class="flash-head">
+      <div><div class="eyebrow" style="margin-bottom:18px">December 2021</div><h2>Log4Shell</h2></div>
+      <div class="meter"><span>STAKES</span><div class="bar"><div class="fill" id="stakes"></div></div><span id="stakes-n">0/5</span></div>
+    </div>
+    <div class="pile">
+      <figure class="flash" data-step="1" data-w="1000" style="left:0; top:0; --r:-1.2deg">
+        <div class="crop" data-crop="0,0,.8,1" data-img="2640x856"><img src="sources/1-ap.png" alt="AP headline: 'The internet's on fire' as techs race to fix software flaw"></div>
+        <figcaption class="src"><span>AP News</span><span>Dec 10, 2021</span></figcaption>
+      </figure>
+      <figure class="flash" data-step="2" data-w="1150" style="left:500px; top:30px; --r:1.2deg">
+        <div class="crop" data-crop=".07,.62,.55,.24" data-img="2880x1800"><img src="sources/2-engadget.png" alt="Engadget: attackers executed code remotely by posting a message on the Minecraft chatbox"></div>
+        <figcaption class="src"><span>Engadget · the Minecraft chatbox</span><span>Dec 2021</span></figcaption>
+      </figure>
+      <figure class="flash" data-step="3" data-w="1180" style="left:60px; top:250px; --r:-.8deg">
+        <div class="crop" data-crop=".105,.655,.53,.175" data-img="2880x1800"><img src="sources/3-tenable.png" alt="AP: Tenable CEO Amit Yoran called it the single biggest, most critical vulnerability of the last decade"></div>
+        <figcaption class="src"><span>AP News · Tenable CEO Amit Yoran</span><span>Dec 10, 2021</span></figcaption>
+      </figure>
+      <figure class="flash" data-step="4" data-w="1200" style="left:440px; top:340px; --r:1deg">
+        <div class="crop" data-crop=".03,.13,.66,.55" data-img="2640x760"><img src="sources/4-cisa.png" alt="CyberScoop: CISA warns 'most serious' Log4j vulnerability likely to affect hundreds of millions of devices"></div>
+        <figcaption class="src"><span>CyberScoop · CISA Director Jen Easterly</span><span>Dec 13, 2021</span></figcaption>
+      </figure>
+      <figure class="flash" data-step="5" data-w="1000" style="left:260px; top:240px; --r:-1.1deg">
+        <div class="crop" data-crop=".09,.08,.74,.52" data-img="2880x1800"><img src="sources/5-crs.png" alt="Congressional Research Service Insight IN11824: Systemic Vulnerabilities in Information Technology—Log4Shell"></div>
+        <figcaption class="src"><span>Congressional Research Service · Insight IN11824</span><span>Dec 13, 2021</span></figcaption>
+      </figure>
+    </div>
+    <script type="text/notes">"December 2021 — the worst week the internet ever had. A diary-keeping library inside Apple, Amazon, Microsoft had a feature: if a diary entry contained a special pattern, fetch something from the internet and run it. Attackers typed that pattern into username boxes. The diary obeyed — no password, full control."
+One → per flash, escalating: AP · Engadget (Minecraft chatbox) · Tenable CEO · CISA Director · Congress.
+CAVEAT: "The internet's on fire" is Adam Meyers (CrowdStrike), quoted by AP. Yoran's own words are "the single biggest, most critical vulnerability of the last decade"; "possibly the biggest in the history of modern computing" is AP's paraphrase. Say "Tenable's CEO called it the biggest vulnerability of the decade" if you name him.</script>
+  </section>
+
+  <!-- 3 · 0:20–0:50 (cont.) The turn -->
+  <section class="slide" data-beat="The story: the turn" data-time="≈0:38–0:44">
+    <div class="stack">
+      <h2 class="muted" data-step="1">Nobody made a typo.</h2>
+      <h2 data-step="2">The code was loyal to a dangerous spec.</h2>
+      <div class="big-quote" data-step="3">Log4Shell wasn't a coding mistake.<br><span class="accent">The spec was the vulnerability.</span></div>
+    </div>
+    <script type="text/notes">"Nobody made a typo. The code was loyal to a dangerous spec. Log4Shell wasn't a coding mistake. The spec was the vulnerability."
+One → per line.</script>
+  </section>
+
+  <!-- 4 · 0:44–0:50 The open loop -->
+  <section class="slide" data-beat="The question (open loop)" data-time="≈0:44–0:50">
+    <h2>If the spec is the vulnerability —<br><span class="accent">where is the gate that checks the spec?</span></h2>
+    <img class="d2" data-step="1" src="diagrams/gate-gap.svg" alt="Spec to Code has no gate; Code to Build has a review gate; Build to Ship has a test gate" style="width:1400px; margin-top:80px">
+    <div class="d2-src" data-step="1">diagrams/gate-gap.d2</div>
+    <script type="text/notes">"So here's the question I want you to hold for the next two minutes: if the spec is the vulnerability — where is the gate that checks the spec?"
+→ reveals the pipeline: every stage after the spec has a gate; the spec has none.</script>
+  </section>
+
+  <!-- 5 · 0:50–1:05 The seam -->
+  <section class="slide" data-beat="The seam" data-time="0:50–1:05">
+    <div class="eyebrow">Now · AI-generated specs</div>
+    <h2 data-step="1" style="font-size:76px">Forge generates specs at machine speed.</h2>
+    <p class="sub" data-step="1" style="margin-top:14px">PRDs, architectures, user stories — in minutes.</p>
+    <figure class="doc" data-step="2" style="margin-top:44px; width:100%">
+      <div class="crop" data-crop=".265,.66,.69,.25" data-img="2880x1800"><img src="sources/6-forge.png" alt="Forge docs: Findings are informational — they do not block pipeline progression."></div>
+      <figcaption class="src">Forge docs · Security Agents · hackathon.softwareforge.ai/docs/security-agents</figcaption>
+    </figure>
+    <p class="pull" data-step="3" style="margin-top:44px">The spec layer got faster. <em>It still has no gate.</em></p>
+    <script type="text/notes">"That was one spec, written by humans. Forge now generates specs at machine speed — PRDs, architectures, user stories in minutes. The spec layer got a hundred times faster, and it still has no gate. Here's Forge's own documentation: 'Findings are informational — they do not block pipeline progression.'"
+→ headline · → the docs screenshot (read the quote) · → "It still has no gate."
+Say it as the platform's documented design, not a defect.</script>
+  </section>
+
+  <!-- 6 · ≈1:05 Hand-off to the live app -->
+  <section class="slide" data-beat="Hand-off → live app" data-time="≈1:05 → cut to app until 2:30">
+    <div class="eyebrow">Live · ShipGate</div>
+    <h2>This is CHG-1042.</h2>
+    <div><div class="chg" style="margin-top:34px"><span class="sev">CRITICAL</span><span class="id">CHG-1042</span><span>Add vendor export API</span><span class="muted" style="font-weight:500; font-size:30px">F-2001 · live credential in the generated spec</span></div></div>
+    <img class="d2" data-step="1" src="diagrams/lifecycle.svg" alt="Change lifecycle: DRAFT, IN_REVIEW, APPROVED, SHIPPED; refused approvals in enforced mode go to BLOCKED; the Security Owner resolves to RESOLVED; re-approve returns to APPROVED" style="width:1300px; margin-top:56px">
+    <div class="d2-src" data-step="1">diagrams/lifecycle.d2 · read from server/engine.ts</div>
+    <script type="text/notes">"This is CHG-1042, 'Add vendor export API.' It carries a critical finding: live credential in the generated spec."
+→ reveals the lifecycle it can take. Then CUT TO THE APP RECORDING, in the app's own labels:
+1. Change detail, assistant box "Ask about this change…": type "why is CHG-1042 blocked?" → Ask.
+2. Advisory (1:15–1:35): Approve → Ship. The toast reads SHIPPED with an open CRITICAL finding (advisory mode).
+3. Enforced (1:35–2:30): header toggle to Enforced → Approve → refused, BLOCKED banner cites "Secrets must not ship" and "Routed to Security Owner queue".
+4. "Open as Security Owner to resolve →" → note e.g. "Credential rotated in vault; removed from spec and git history." → resolve → state RESOLVED.
+5. Switch role to Approver → Approve → Ship → SHIPPED. "Verify chain" shows the chain intact.
+Reset demo (header) restores the seed and advisory mode between takes. Come back to the next slide at ≈2:20.</script>
+  </section>
+
+  <!-- 6b · ≈2:20–2:30 Bridge: what changed between the two modes -->
+  <section class="slide" data-beat="What changed: the gate" data-time="≈2:20–2:30">
+    <div class="eyebrow">Same change · same approver · same Friday afternoon</div>
+    <h2 data-step="1">So what changed between the two runs?</h2>
+    <img class="d2" data-step="2" src="diagrams/approve.svg" alt="Approve CHG-1042: open finding at or above threshold, yes; mode advisory leads to APPROVED and ships with the finding open; mode enforced leads to REFUSED and routed to Security Owner; both are recorded in the hash ledger" style="width:1640px; margin-top:50px">
+    <div class="d2-src" data-step="2">diagrams/approve.d2 · read from ShipGateEngine.approve()</div>
+    <h2 data-step="3" style="margin-top:50px">Not the human. <span class="accent">The gate.</span></h2>
+    <script type="text/notes">"Notice what the gate never did: it never asked the human to be more careful. So what actually changed between the two modes? Not the human. The gate."
+→ question · → the approve() branch: everything is identical until Mode? · → "Not the human. The gate."
+Optional cut-in: use it after the app's resolution, or stay in the app for this line.</script>
+  </section>
+
+  <!-- 7 · 2:30–2:45 Close -->
+  <section class="slide" data-beat="Close" data-time="2:30–2:45">
+    <div class="stack">
+      <div class="tagline" data-step="1">Forge builds software at AI speed.</div>
+      <div class="tagline" data-step="2"><span class="accent">ShipGate</span> makes it shippable<br>in a regulated enterprise.</div>
+      <div class="arrowline" data-step="3" style="margin-top:56px">
+        <span class="pill">Advisory findings</span><span class="accent">→</span><span class="pill hot">Enforced policy</span>
+        <span class="pill" style="margin-left:24px">Every shipment carries its evidence</span>
+      </div>
+      <img class="d2" data-step="4" src="diagrams/chain.svg" alt="CHG-1042's ledger: refused approval, resolution with a note, approval, shipment, each linked to the previous by its hash" style="width:1640px; margin-top:46px">
+      <div class="d2-src" data-step="4">diagrams/chain.d2 · read from server/ledger.ts: each hash covers the event and the one before it</div>
+    </div>
+    <script type="text/notes">"Forge builds software at AI speed. ShipGate is the control plane that makes it shippable in a regulated enterprise — advisory findings become enforced policy, and every shipment carries its evidence."</script>
+  </section>
+
+  <!-- 8 · 2:45–2:55 Final card -->
+  <section class="slide" data-beat="Final card" data-time="2:45–2:55">
+    <p class="sub" data-step="1">Log4Shell shipped because no gate stood at the spec layer.</p>
+    <div class="final" data-step="2" style="margin-top:40px">ShipGate is <span class="accent">that gate.</span></div>
+    <p class="sub" data-step="3" style="margin-top:70px; color:var(--text)">What spec is shipping in your org right now —<br><span class="accent">with nobody standing at the gate?</span></p>
+    <div class="corner" data-step="2">ShipGate · built on Opsera Forge · SF Enterprise Hackathon 2.0</div>
+    <script type="text/notes">"Log4Shell shipped because no gate stood at the spec layer. ShipGate is that gate. I'll leave you with this: what spec is shipping in your org right now — with nobody standing at the gate?"
+Hold on the final question for 2–3 seconds of silence before stopping the recording.</script>
+  </section>
+
+  <div id="progress"></div>
+</div></div>
+
+<div id="notes"><div class="meta"></div><div class="body"></div></div>
+<div id="help">
+  <div><b>→ / space</b>next step</div>
+  <div><b>←</b>previous step</div>
+  <div><b>n</b>notes on this screen</div>
+  <div><b>p</b>presenter window</div>
+  <div><b>r</b>recording mode</div>
+  <div><b>f</b>full screen</div>
+  <div><b>Home</b>first slide</div>
+  <div><b>h</b>this help</div>
+</div>
+
+<div id="presenter">
+  <div class="top"><span id="p-pos"></span><span class="clock" id="p-clock">0:00</span></div>
+  <div class="beat" id="p-beat"></div>
+  <div class="muted mono" id="p-time"></div>
+  <div class="script" id="p-script"></div>
+  <div id="p-caveat"></div>
+  <div class="next" id="p-next"></div>
+  <div style="margin-top:28px">
+    <button id="p-prev">← Prev</button><button id="p-go">Next →</button><button id="p-reset">Reset clock</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const slides = [...document.querySelectorAll('.slide')];
+  const presenter = new URLSearchParams(location.search).has('presenter');
+  const chan = 'BroadcastChannel' in window ? new BroadcastChannel('shipgate-deck') : null;
+  let s = 0, step = 0;
+
+  const stepsOf = (el) => Math.max(0, ...[...el.querySelectorAll('[data-step]')].map((n) => +n.dataset.step));
+  const notesOf = (el) => (el.querySelector('script[type="text/notes"]')?.textContent || '').trim();
+
+  // Crop a screenshot to a fractional rectangle x,y,w,h of its natural size. The WIDTH is the figure's
+  // (data-w on a flash, the column on a doc); the height follows from the crop's own aspect ratio, so
+  // text in a screenshot is never squashed and never smaller than the width allows.
+  function layoutCrops() {
+    document.querySelectorAll('.crop').forEach((c) => {
+      const [x, y, w, h] = c.dataset.crop.split(',').map(Number);
+      const [iw, ih] = c.dataset.img.split('x').map(Number);
+      const fig = c.closest('.flash, .doc');
+      const frameW = fig.dataset.w ? +fig.dataset.w : fig.clientWidth;
+      const scale = frameW / (w * iw);
+      fig.style.width = frameW + 'px';
+      c.style.width = frameW + 'px';
+      c.style.height = h * ih * scale + 'px';
+      const img = c.querySelector('img');
+      img.style.width = iw * scale + 'px';
+      img.style.left = -x * iw * scale + 'px';
+      img.style.top = -y * ih * scale + 'px';
+    });
+  }
+
+  function fit() {
+    const st = document.getElementById('stage');
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    st.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+
+  function render(broadcast = true) {
+    slides.forEach((el, i) => el.classList.toggle('active', i === s));
+    const cur = slides[s];
+    cur.querySelectorAll('[data-step]').forEach((n) => n.classList.toggle('in', +n.dataset.step <= step));
+    slides.forEach((el, i) => { if (i !== s) el.querySelectorAll('[data-step]').forEach((n) => n.classList.remove('in')); });
+    // Stakes meter on the Log4Shell slide follows the flashes revealed.
+    const flashes = [...cur.querySelectorAll('.flash')];
+    flashes.forEach((f) => f.classList.toggle('past', +f.dataset.step < step));
+    const shown = [...cur.querySelectorAll('.flash.in')].length;
+    const fill = document.getElementById('stakes');
+    if (fill) { fill.style.width = (shown / 5 * 100) + '%'; document.getElementById('stakes-n').textContent = shown + '/5'; }
+    document.getElementById('progress').style.width = ((s + (stepsOf(cur) ? step / stepsOf(cur) : 1)) / slides.length * 100) + '%';
+    const n = document.getElementById('notes');
+    n.querySelector('.meta').textContent = `${s + 1}/${slides.length} · ${cur.dataset.beat} · ${cur.dataset.time} · step ${step}/${stepsOf(cur)}`;
+    n.querySelector('.body').textContent = notesOf(cur);
+    if (presenter) renderPresenter();
+    try { localStorage.setItem('shipgate-deck', JSON.stringify({ s, step })); } catch (e) {}
+    if (broadcast && chan) chan.postMessage({ s, step });
+    history.replaceState(null, '', (presenter ? '?presenter' : '') + `#${s + 1}.${step}`);
+  }
+
+  function renderPresenter() {
+    const cur = slides[s], next = slides[s + 1];
+    const text = notesOf(cur);
+    const [script, ...rest] = text.split('\n');
+    document.getElementById('p-pos').textContent = `Slide ${s + 1} of ${slides.length} · step ${step}/${stepsOf(cur)}`;
+    document.getElementById('p-beat').textContent = cur.dataset.beat;
+    document.getElementById('p-time').textContent = cur.dataset.time;
+    document.getElementById('p-script').textContent = script;
+    document.getElementById('p-caveat').innerHTML = rest.filter(Boolean).map((l) => `<div class="caveat"></div>`).join('');
+    [...document.querySelectorAll('#p-caveat .caveat')].forEach((d, i) => { d.textContent = rest.filter(Boolean)[i]; });
+    document.getElementById('p-next').textContent = next ? `Next: ${next.dataset.beat} (${next.dataset.time})` : 'Last slide.';
+  }
+
+  function go(d) {
+    const max = stepsOf(slides[s]);
+    if (d > 0) { if (step < max) step++; else if (s < slides.length - 1) { s++; step = 0; } }
+    else { if (step > 0) step--; else if (s > 0) { s--; step = stepsOf(slides[s]); } }
+    render();
+  }
+
+  // Restore position from the hash (#slide.step) so a reload does not lose the place mid-recording.
+  const m = location.hash.match(/^#(\d+)\.(\d+)$/);
+  if (m) { s = Math.min(slides.length - 1, Math.max(0, +m[1] - 1)); step = Math.min(stepsOf(slides[s]), +m[2]); }
+
+  if (chan) chan.onmessage = (e) => { s = e.data.s; step = e.data.step; render(false); };
+
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (['ArrowRight', ' ', 'PageDown', 'Enter'].includes(k)) { e.preventDefault(); go(1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(-1); }
+    else if (k === 'Home') { s = 0; step = 0; render(); }
+    else if (k === 'n') document.getElementById('notes').classList.toggle('show');
+    else if (k === 'h' || k === '?') document.getElementById('help').classList.toggle('show');
+    else if (k === 'r') document.body.classList.toggle('recording');
+    else if (k === 'p') window.open(location.pathname + '?presenter' + location.hash, 'shipgate-presenter', 'width=1100,height=800');
+    else if (k === 'f') { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); else document.exitFullscreen?.(); }
+  });
+  document.getElementById('stage').addEventListener('click', (e) => { if (!presenter) go(e.clientX > innerWidth / 3 ? 1 : -1); });
+
+  // Hide the cursor when idle, so it never lands in the recording.
+  let idle; addEventListener('mousemove', () => { document.body.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('idle'), 1500); });
+
+  if (presenter) {
+    document.body.classList.add('presenter');
+    document.getElementById('p-prev').onclick = () => go(-1);
+    document.getElementById('p-go').onclick = () => go(1);
+    let t0 = Date.now();
+    document.getElementById('p-reset').onclick = () => { t0 = Date.now(); };
+    setInterval(() => { const sec = Math.floor((Date.now() - t0) / 1000); document.getElementById('p-clock').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }, 250);
+  }
+
+  addEventListener('resize', fit);
+  fit();
+  const ready = () => { layoutCrops(); render(false); };
+  if (document.readyState === 'complete') ready(); else addEventListener('load', ready);
+  document.fonts?.ready.then(layoutCrops);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Bridge slide — what approve() does, read from server/engine.ts. Same change, same approver: the
+# only branch that differs between the two recorded runs is the mode. The role check (403) and the
+# clean path (no blocking finding) are real branches too, left off so the one that matters is legible.
+...@theme.d2
+direction: right
+
+click: "Approve\nCHG-1042" {class: box}
+gate: "Open finding\n≥ threshold?" {class: ask}
+mode: "Mode?" {class: ask}
+advisory: "APPROVED\nships with the\nfinding open" {class: bad}
+enforced: "REFUSED\nrouted to\nSecurity Owner" {class: good}
+ledger: "Hash ledger" {class: hot; shape: cylinder}
+
+click -> gate {class: flow}
+gate -> mode: "yes · F-2001" {class: flow}
+mode -> advisory: advisory {class: flow-bad}
+mode -> enforced: enforced {class: flow-hot}
+advisory -> ledger: recorded {class: flow; style.stroke-dash: 4}
+enforced -> ledger: recorded {class: flow; style.stroke-dash: 4}
