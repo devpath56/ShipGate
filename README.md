@@ -1,13 +1,64 @@
 # ShipGate
 
-Release governance that turns advisory security findings into **enforced blocking gates**, with a
-**hash-chained evidence ledger**. Built for SF Enterprise Hackathon 2.0 (Legacy Modernization track)
-on Opsera Forge.
+## [Try to ship the flagged change yourself →](https://shipgate-12wg.onrender.com/#/changes/CHG-1042)
 
-This repo holds the architecture as a versioned model, drawn and checked by
-[Drawing Office](https://github.com/devpath56/drawing-office).
+**A security scanner flags a live credential in a change. The approver clicks Approve anyway, because in the old process findings are "informational". ShipGate refuses the approval, cites the policy, routes the change to the Security Owner, and writes every step to a tamper-evident ledger.**
 
-## What is modelled
+**Live:** [app](https://shipgate-12wg.onrender.com) · [CHG-1042](https://shipgate-12wg.onrender.com/#/changes/CHG-1042) · [legacy view](https://shipgate-12wg.onrender.com/#/legacy) · [audit ledger](https://shipgate-12wg.onrender.com/#/ledger) · [architecture model](https://devpath56.github.io/ShipGate/) — no login, nothing to install. The free host sleeps when idle; the first load can take up to 50 seconds.
+
+**Specified in Opsera Forge, built from its work orders.** Forge's spec-first pipeline produced the intent, PRD, architecture and 29 work orders (WO-001 to WO-029); the code implements them, and this repository is linked and synced in the project's Forge Application Context. The app is hosted on Render, which the Opsera team confirmed is acceptable for this hackathon.
+
+**Result:** flagged change reaching production **shipped → refused**, advisory → enforced · no bypass found in an adversarial audit · 24 tests
+
+![CHG-1042 blocked by the "Secrets must not ship" policy, routed to the Security Owner](docs/blocked.png)
+
+## The problem
+
+Production changes are approved by a change advisory board: an email thread, a PDF of scanner output, and a weekly call where fourteen people approve thirty changes in a batch. A security finding is "informational", so a change carrying a live credential ships as soon as one person replies *"LGTM, approved"*.
+
+AI-generated code makes this worse, not better. Forge's own security agents inspect every artifact, but its docs are explicit: *"Findings are informational — they do not block pipeline progression."* The scanner does its job. The process ships the change anyway.
+
+## What it does
+
+1. **Evaluate.** Every change's open findings are checked against active blocking policies, giving an ALLOW or BLOCK verdict that names the policy and the findings.
+2. **Enforce.** In enforced mode the server refuses any approval or shipment that a policy blocks. The check sits in the state transitions, not the UI, so a direct API call is refused too.
+3. **Route.** A refused change moves to BLOCKED and lands in the policy owner's queue. Only that role can resolve the finding, and only with a written note. The gate then re-evaluates and the change can ship.
+4. **Record.** Every transition, refusals included, is appended to a SHA-256 hash-chained ledger. **Verify chain** recomputes it and reports the first broken or missing event.
+5. **Explain.** A risk summary, a plain-language explanation and fix for each finding, a governance assistant, and a suggested policy, all generated from the live findings, policies and ledger.
+
+An **Advisory / Enforced** toggle runs the same change through the legacy process and through ShipGate, side by side.
+
+## Result
+
+| Scenario | Advisory mode (legacy) | Enforced mode (ShipGate) |
+|---|---|---|
+| Approver approves CHG-1042 (open CRITICAL secret-handling finding) | **Approved and shipped** | **Refused** (409), BLOCKED, routed to Security Owner |
+| Approve in advisory, switch to enforced, then ship | — | **Refused at ship time** |
+| Security Owner resolves with a note, then re-approve | — | Shipped. Ledger reads BLOCKED → RESOLVED → APPROVED → SHIPPED |
+| Judge / Guest role calls the approve API directly | Refused (403) | Refused (403) |
+| Resolve with an empty note | Refused (400) | Refused (400) |
+| An event is edited, or the newest event deleted | — | Verify chain reports the broken or missing event |
+
+**The findings feed is simulated, and labelled so in the UI.** The blocking is ShipGate's own logic, not native Forge behaviour. The AI layer is a deterministic reasoning engine over live data, with no LLM: it gives the same answer every time and declines questions outside governance. In production the feed would be a live adapter over Forge's MCP endpoint.
+
+`npm test` runs the checks above plus tamper, reset and assistant cases: 24 tests, no network, no keys.
+
+## Run locally
+
+Needs Node 20+.
+
+```bash
+git clone https://github.com/devpath56/ShipGate && cd ShipGate
+npm install
+npm test                              # 24 tests, no internet, no keys
+npm run build && npm start            # app and API on :8787
+```
+
+**Walk the demo:** Legacy view → CHG-1042 → Approve → Ship (it ships) → **Reset demo** → **Enforced** → Approve (refused) → *Open as Security Owner to resolve* → note → Resolve → switch to Approver → Approve → Ship → **Verify chain**.
+
+## Architecture model
+
+The architecture is a versioned model, drawn and checked by [Drawing Office](https://github.com/devpath56/drawing-office) and transcribed from Forge's generated architecture artifact, not invented.
 
 | View | Kind | Shows |
 |---|---|---|
@@ -21,66 +72,27 @@ This repo holds the architecture as a versioned model, drawn and checked by
 | **Explain** | feature trace | the assistant answers "why is CHG-1042 blocked?" from the live finding, policy and ledger |
 | Demo | deployment | one process on Render; the SPA runs in the browser |
 
-Ten decisions sit beside the model in `architecture/shipgate/adrs/`. Each accepted one names the code
-that implements it; decision 8 (Forge Shipping to ECS) is superseded by decision 9 (Render).
+Ten decisions sit in `architecture/shipgate/adrs/`. Each accepted one names the code that implements it; decision 8 (Forge Shipping to ECS) is superseded by decision 9 (Render).
 
-## The model follows the code
+**The model follows the code.** Every component names its source files in a `"code"` property, and `architecture/drift.mjs` compares the two on every push that touches `server/`, `web/src/` or `architecture/`: it reports a source file no component names (`unclaimed`), a component naming a file that no longer exists (`missing`), and an import the model draws no line for (`unwired`).
 
-Every component names its source files in a `"code"` property, and `architecture/drift.mjs`
-compares the two on every push that touches `server/`, `web/src/` or `architecture/`:
-
-| Finding | Means |
-|---|---|
-| `unclaimed` | a source file no component names |
-| `missing` | a component naming a file that no longer exists |
-| `unwired` | an import between two components the model draws no line for |
-
-`server/domain.ts` and `web/src/ui.tsx` are shared by nearly every module and are not drawn. Labels,
-traces and decisions are intent and cannot be derived from code, so a failing run tells you which
-line to write, not what it should say.
+**Live:** https://devpath56.github.io/ShipGate/ — rebuilt by `.github/workflows/architecture.yml`. A pull request runs the drift check, the build and all 17 Drawing Office checks without deploying, so a model that has fallen behind the code, or that Drawing Office would refuse, fails the PR.
 
 ```bash
-node architecture/drift.mjs
+node architecture/drift.mjs                          # model vs code
+node ../drawing-office/tools/build.mjs --root .      # needs structurizr-cli + Graphviz
+node ../drawing-office/tools/serve.mjs 8019 --root . # then open /architecture/viewer.html
 ```
 
-## Render it
+## Repo map
 
-**Live:** https://devpath56.github.io/ShipGate/ — rebuilt by `.github/workflows/architecture.yml` on
-every push to `main` that touches `architecture/`, `server/` or `web/src/`. A pull request runs the
-drift check, the build and all 17 Drawing Office checks without deploying, so a model that has
-fallen behind the code, or that Drawing Office would refuse, fails the PR.
-
-Locally, this needs Drawing Office checked out beside this repo, plus `structurizr-cli` and Graphviz.
-
-```bash
-node ../drawing-office/tools/build.mjs --root .
-node ../drawing-office/tools/serve.mjs 8019 --root .
+```
+server/        Fastify API: owns all state, policy gates, transitions, hash ledger, AI layer, tests
+web/           React SPA: owns no state; dashboard, change detail, policies, ledger, legacy view
+architecture/  Drawing Office model of the architecture, ten ADRs, and the model-vs-code drift check
+demo/          the demo deck: non-app beats as HTML, D2 workflow diagrams, and sourced screenshots
+docs/          screenshots
+render.yaml    single-process deploy (in-memory state needs one long-running instance)
 ```
 
-Then open http://localhost:8019/architecture/viewer.html. The exported site is derived and not
-tracked; `build` puts it back.
-
-## The app
-
-The running ShipGate app lives beside the model: `server/` (Fastify + TypeScript, owns all state)
-and `web/` (React SPA, owns none). It implements Forge work orders WO-001 to WO-029 plus the AI layer.
-
-```bash
-npm install
-npm run build && npm start      # http://localhost:8787
-npm test                        # enforcement, ledger-tamper, reset and assistant tests
-```
-
-| Demo beat | Where |
-|---|---|
-| Legacy CAB-by-email mock | Legacy view |
-| Advisory: CHG-1042 ships despite its CRITICAL finding | CHG-1042 → Approve → Ship (Advisory) |
-| Enforced: identical approval refused, cited, routed | toggle Enforced → Approve |
-| Resolve → re-approve → SHIPPED | "Open as Security Owner to resolve" → note → Approver → Approve → Ship |
-| Tamper evidence | Verify chain (change detail or Audit ledger) |
-
-Honest boundaries: the findings feed is seeded and labelled **Simulated** in the UI; blocking is
-ShipGate's application logic, not native Forge behaviour; the AI layer is a deterministic reasoning
-engine over live findings, policies and ledger data (no LLM calls); state is in memory, and
-**Reset demo** restores the seed. Deployed as one process (`render.yaml`) because in-memory state
-needs a single long-running instance.
+Built during SF Enterprise Hackathon 2.0 (Legacy Modernization track) by Isha Mishra and Devansh Pathak, with Opsera Forge and Claude Code. The visual style uses Forge's own design tokens so ShipGate reads as part of the Forge workflow. It is an independent project, not an Opsera product.
