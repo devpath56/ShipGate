@@ -46,6 +46,13 @@ export default function App() {
   const [tick, setTick] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [busy, setBusy] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try { return localStorage.getItem('shipgate-theme') === 'light' ? 'light' : 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('shipgate-theme', theme); } catch { /* storage unavailable */ }
+  }, [theme]);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
   const toast = useCallback((kind: ToastKind, text: string) => {
@@ -128,6 +135,10 @@ export default function App() {
                 {ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
             </label>
+            <button className="btn ghost small theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
             <button className="btn ghost small" onClick={reset} disabled={busy} title="Restore seed data and advisory mode">
               {busy ? 'Resetting…' : 'Reset demo'}
             </button>
@@ -136,7 +147,7 @@ export default function App() {
       </header>
       <main className="page">{page}</main>
       <footer className="foot">
-        ShipGate · policy gates enforced server-side · SHA-256 hash-chained ledger · findings feed simulated for this demo
+        ShipGate · independent hackathon project built with Opsera Forge · policy gates enforced server-side · SHA-256 hash-chained ledger · findings feed simulated for this demo
       </footer>
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.text}</div>)}
