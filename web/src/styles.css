@@ -287,3 +287,4 @@ p { margin: 6px 0; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .mail-msg { margin-left: 0 !important; }
 }
+.route-btn { margin-top: 10px; border-color: var(--red); color: var(--red); background: var(--surface); }

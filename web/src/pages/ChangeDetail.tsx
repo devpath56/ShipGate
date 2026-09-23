@@ -8,6 +8,7 @@ import { AiLabel, fmtTime, SeverityBadge, shortHash, SimLabel, Skeleton, StatePi
 
 function VerdictBanner({ d }: { d: ChangeDetail }) {
   const { change, blocking, mode } = d;
+  const { role, setRole, toast } = useApp();
   if (change.state === 'SHIPPED' && change.shipped_with_exception) {
     return (
       <div className="banner exception">
@@ -46,6 +47,15 @@ function VerdictBanner({ d }: { d: ChangeDetail }) {
           Owner: <strong>{b.policy.owner_role}</strong>
           {change.routed_to ? <span className="routed">→ Routed to {change.routed_to} queue</span> : binding ? <span className="muted"> · approval attempts will be refused and routed</span> : null}
         </div>
+        {change.routed_to && role !== change.routed_to && (
+          <button className="btn small route-btn" onClick={() => {
+            setRole(change.routed_to!);
+            toast('info', `Acting as ${change.routed_to} (demo control) — resolve the blocking finding below.`);
+            document.getElementById(`finding-${b.findings[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}>
+            Open as {change.routed_to} to resolve →
+          </button>
+        )}
       </div>
     </div>
   );
@@ -125,7 +135,7 @@ function FindingRow({ f, reload }: { f: Finding; reload: () => void }) {
   };
 
   return (
-    <li className={`finding ${f.status}`}>
+    <li className={`finding ${f.status}`} id={`finding-${f.id}`}>
       <div className="finding-top">
         <SeverityBadge severity={f.severity} />
         <span className="cat">{f.category}</span>

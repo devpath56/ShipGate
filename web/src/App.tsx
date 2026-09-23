@@ -14,6 +14,7 @@ interface Toast { id: number; kind: ToastKind; text: string }
 
 interface Ctx {
   role: Role; mode: Mode; tick: number;
+  setRole: (r: Role) => void;
   refresh: () => void;
   toast: (kind: ToastKind, text: string) => void;
 }
@@ -88,7 +89,7 @@ export default function App() {
   else page = <Dashboard />;
 
   return (
-    <AppCtx.Provider value={{ role, mode, tick, refresh, toast }}>
+    <AppCtx.Provider value={{ role, mode, tick, refresh, toast, setRole }}>
       <div className="demo-strip">
         <span>Demo environment · non-production · no login required</span>
         <span className="sim-label">Simulated findings feed</span>
