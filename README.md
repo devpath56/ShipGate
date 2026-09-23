@@ -2,6 +2,8 @@
 
 ## [Try to ship the flagged change yourself →](https://shipgate-12wg.onrender.com/#/changes/CHG-1042)
 
+**[▶ Watch the 2-minute walkthrough](docs/shipgate-walkthrough.mp4)** — or skip it and try the flow yourself, above.
+
 **A security scanner flags a live credential in a change. The approver clicks Approve anyway, because in the old process findings are "informational". ShipGate refuses the approval, cites the policy, routes the change to the Security Owner, and writes every step to a tamper-evident ledger.**
 
 **Live:** [app](https://shipgate-12wg.onrender.com) · [CHG-1042](https://shipgate-12wg.onrender.com/#/changes/CHG-1042) · [legacy view](https://shipgate-12wg.onrender.com/#/legacy) · [audit ledger](https://shipgate-12wg.onrender.com/#/ledger) · [architecture model](https://devpath56.github.io/ShipGate/) — no login, nothing to install. The free host sleeps when idle; the first load can take up to 50 seconds.
@@ -91,7 +93,7 @@ server/        Fastify API: owns all state, policy gates, transitions, hash ledg
 web/           React SPA: owns no state; dashboard, change detail, policies, ledger, legacy view
 architecture/  Drawing Office model of the architecture, ten ADRs, and the model-vs-code drift check
 demo/          the demo deck: non-app beats as HTML, D2 workflow diagrams, and sourced screenshots
-docs/          the Forge trail (docs/forge: intent, PRD, architecture, 29 work orders, testing) and screenshots
+docs/          the Forge trail (docs/forge: intent, PRD, architecture, 29 work orders, testing), the walkthrough video, and screenshots
 render.yaml    single-process deploy (in-memory state needs one long-running instance)
 ```
 
