@@ -53,3 +53,28 @@ node ../drawing-office/tools/serve.mjs 8019 --root .
 
 Then open http://localhost:8019/architecture/viewer.html. The exported site is derived and not
 tracked; `build` puts it back.
+
+## The app
+
+The running ShipGate app lives beside the model: `server/` (Fastify + TypeScript, owns all state)
+and `web/` (React SPA, owns none). It implements Forge work orders WO-001 to WO-029 plus the AI layer.
+
+```bash
+npm install
+npm run build && npm start      # http://localhost:8787
+npm test                        # enforcement, ledger-tamper, reset and assistant tests
+```
+
+| Demo beat | Where |
+|---|---|
+| Legacy CAB-by-email mock | Legacy view |
+| Advisory: CHG-1042 ships despite its CRITICAL finding | CHG-1042 → Approve → Ship (Advisory) |
+| Enforced: identical approval refused, cited, routed | toggle Enforced → Approve |
+| Resolve → re-approve → SHIPPED | "Open as Security Owner to resolve" → note → Approver → Approve → Ship |
+| Tamper evidence | Verify chain (change detail or Audit ledger) |
+
+Honest boundaries: the findings feed is seeded and labelled **Simulated** in the UI; blocking is
+ShipGate's application logic, not native Forge behaviour; the AI layer is a deterministic reasoning
+engine over live findings, policies and ledger data (no LLM calls); state is in memory, and
+**Reset demo** restores the seed. Deployed as one process (`render.yaml`) because in-memory state
+needs a single long-running instance.
