@@ -6,7 +6,7 @@
 
 **Live:** [app](https://shipgate-12wg.onrender.com) · [CHG-1042](https://shipgate-12wg.onrender.com/#/changes/CHG-1042) · [legacy view](https://shipgate-12wg.onrender.com/#/legacy) · [audit ledger](https://shipgate-12wg.onrender.com/#/ledger) · [architecture model](https://devpath56.github.io/ShipGate/) — no login, nothing to install. The free host sleeps when idle; the first load can take up to 50 seconds.
 
-**Specified in Opsera Forge, built from its work orders.** Forge's spec-first pipeline produced the intent, PRD, architecture and 29 work orders (WO-001 to WO-029); the code implements them, and this repository is linked and synced in the project's Forge Application Context. The app is hosted on Render, which the Opsera team confirmed is acceptable for this hackathon.
+**Specified in Opsera Forge, built from its work orders.** Forge's spec-first pipeline produced the intent, PRD, architecture and 29 work orders (WO-001 to WO-029); the code implements them, and this repository is linked and synced in the project's Forge Application Context, and the work orders are tracked on its board. **[The Forge trail →](docs/forge/)**: every stage's artifact, what we fed Forge at each gate, and which file implements each work order. The app is hosted on Render, which the Opsera team confirmed is acceptable for this hackathon.
 
 **Result:** flagged change reaching production **shipped → refused**, advisory → enforced · no bypass found in an adversarial audit · 24 tests
 
@@ -91,7 +91,7 @@ server/        Fastify API: owns all state, policy gates, transitions, hash ledg
 web/           React SPA: owns no state; dashboard, change detail, policies, ledger, legacy view
 architecture/  Drawing Office model of the architecture, ten ADRs, and the model-vs-code drift check
 demo/          the demo deck: non-app beats as HTML, D2 workflow diagrams, and sourced screenshots
-docs/          screenshots
+docs/          the Forge trail (docs/forge: intent, PRD, architecture, 29 work orders, testing) and screenshots
 render.yaml    single-process deploy (in-memory state needs one long-running instance)
 ```
 
