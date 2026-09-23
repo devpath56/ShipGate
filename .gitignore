@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+
+# Derived by the exporter — rebuilt by drawing-office tools/build.mjs, never reviewed as text.
+architecture/*/site/
+architecture/svg/
