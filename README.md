@@ -36,7 +36,15 @@ The artifact has no AI layer, so neither does the model.
 
 ## Render it
 
-Needs Drawing Office checked out beside this repo, plus `structurizr-cli` and Graphviz.
+**Live:** https://devpath56.github.io/ShipGate/ — rebuilt by `.github/workflows/architecture.yml` on
+every push to `main` that touches `architecture/`. A pull request runs the same build and all 17
+checks without deploying, so a model Drawing Office would refuse fails the PR.
+
+**The code does not update the DSL.** When a change adds, removes or rewires a component, edit
+`architecture/shipgate/workspace.dsl` in the same PR. A drift gate that fails a PR whose code and
+model disagree is planned for after the first code lands.
+
+Locally, this needs Drawing Office checked out beside this repo, plus `structurizr-cli` and Graphviz.
 
 ```bash
 node ../drawing-office/tools/build.mjs --root .
