@@ -11,38 +11,44 @@ This repo holds the architecture as a versioned model, drawn and checked by
 
 | View | Kind | Shows |
 |---|---|---|
-| Context | system context | four demo roles, ShipGate, and Forge Shipping |
-| Containers | container | the SPA owns no state; the REST API owns all of it |
-| Screens | component | the SPA's screens and the one API client they share |
-| Engine | component | controllers delegate, the transition engine decides, the ledger records both |
+| Context | system context | four demo roles, ShipGate, and Opsera Forge, which generated the spec |
+| Containers | container | the web app owns no state; the API server owns all of it |
+| Screens | component | the app shell, five screens, and the one API client they share |
+| Engine | component | routes decide nothing, the governance engine decides, the ledger records both, the AI layer explains |
 | **Advisory** | feature trace | baseline: CHG-1042 ships despite its open CRITICAL finding |
-| **Enforced** | feature trace | the identical approval is refused, cited, and recorded |
+| **Enforced** | feature trace | the identical approval is refused, cited, routed to Security Owner, and recorded |
 | **Resolve** | feature trace | Security Owner resolves with a note; re-approve ships; BLOCKED → RESOLVED → SHIPPED |
-| Demo | deployment | one container on ECS Fargate; the SPA runs in the browser |
+| **Explain** | feature trace | the assistant answers "why is CHG-1042 blocked?" from the live finding, policy and ledger |
+| Demo | deployment | one process on Render; the SPA runs in the browser |
 
-Eight decisions sit beside the model in `architecture/shipgate/adrs/`, one per row of the Forge
-architecture artifact's decision table, all **Proposed**.
+Ten decisions sit beside the model in `architecture/shipgate/adrs/`. Each accepted one names the code
+that implements it; decision 8 (Forge Shipping to ECS) is superseded by decision 9 (Render).
 
-## Source and the calls made
+## The model follows the code
 
-The model is transcribed from Forge's generated architecture artifact (2026-09-23), not invented.
-Three gaps in that artifact were closed in `workspace.dsl`, each commented where it lands:
+Every component names its source files in a `"code"` property, and `architecture/drift.mjs`
+compares the two on every push that touches `server/`, `web/src/` or `architecture/`:
 
-1. The demo role guard is a component: the sequence diagram routes through it and the component diagram omitted it.
-2. A controller may append to the ledger: a refused-role event is recorded before the engine is reached.
-3. The in-memory store is a component, not a container: it lives inside the API process.
+| Finding | Means |
+|---|---|
+| `unclaimed` | a source file no component names |
+| `missing` | a component naming a file that no longer exists |
+| `unwired` | an import between two components the model draws no line for |
 
-The artifact has no AI layer, so neither does the model.
+`server/domain.ts` and `web/src/ui.tsx` are shared by nearly every module and are not drawn. Labels,
+traces and decisions are intent and cannot be derived from code, so a failing run tells you which
+line to write, not what it should say.
+
+```bash
+node architecture/drift.mjs
+```
 
 ## Render it
 
 **Live:** https://devpath56.github.io/ShipGate/ — rebuilt by `.github/workflows/architecture.yml` on
-every push to `main` that touches `architecture/`. A pull request runs the same build and all 17
-checks without deploying, so a model Drawing Office would refuse fails the PR.
-
-**The code does not update the DSL.** When a change adds, removes or rewires a component, edit
-`architecture/shipgate/workspace.dsl` in the same PR. A drift gate that fails a PR whose code and
-model disagree is planned for after the first code lands.
+every push to `main` that touches `architecture/`, `server/` or `web/src/`. A pull request runs the
+drift check, the build and all 17 Drawing Office checks without deploying, so a model that has
+fallen behind the code, or that Drawing Office would refuse, fails the PR.
 
 Locally, this needs Drawing Office checked out beside this repo, plus `structurizr-cli` and Graphviz.
 

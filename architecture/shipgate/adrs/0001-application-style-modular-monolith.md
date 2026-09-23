@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -18,4 +18,7 @@ A React SPA calls one Node.js REST API. Module boundaries separate the state eng
 
 Rejected: microservices (too much deployment for eight changes) and a server-rendered full-stack app (risks mixing the UI with ownership of transitions). Scales less independently, and production integrations may later need services extracted.
 
-Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+## In the code
+
+server/ and web/ are one repo and one deployable: web/src is a React SPA, server/ a Fastify API with engine, ledger, AI and seed modules.

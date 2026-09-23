@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -18,4 +18,7 @@ Each policy blocks open findings at or above its threshold. The seeded policy is
 
 Rejected: a hard-coded CHG-1042 check (unmaintainable) and general policy authoring (out of scope). Limited to the seeded policy taxonomy in the MVP.
 
-Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+## In the code
+
+server/engine.ts blockingFor() matches open findings to each active policy by category (applies_to) and severity rank; the seeded policy is POL-001 Secrets must not ship.

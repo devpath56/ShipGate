@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -18,4 +18,7 @@ The selected role travels with each request, is allow-listed, and is checked on 
 
 Rejected: real OAuth/OIDC (out of scope) and hiding actions in the UI only (bypassable). The actor is a selected role, not a verified person, so the audit evidence is demo evidence.
 
-Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+## In the code
+
+server/engine.ts requireRole() refuses any action by the wrong demo role with 403 ROLE_FORBIDDEN, and appends the refusal to the ledger before throwing.

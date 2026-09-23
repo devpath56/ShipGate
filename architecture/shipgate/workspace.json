@@ -3,61 +3,75 @@
   "description" : "Release governance: advisory findings become enforced blocking gates with a hash-chained evidence ledger.",
   "documentation" : {
     "decisions" : [ {
-      "content" : "# 1. Application style: a TypeScript modular monolith\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe MVP must keep governance decisions on the server without distributed-system overhead, for eight seeded changes.\n\n## Decision\n\nA React SPA calls one Node.js REST API. Module boundaries separate the state engine, the policy evaluator, the ledger, the seed and the controllers.\n\n## Consequences\n\nRejected: microservices (too much deployment for eight changes) and a server-rendered full-stack app (risks mixing the UI with ownership of transitions). Scales less independently, and production integrations may later need services extracted.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 1. Application style: a TypeScript modular monolith\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe MVP must keep governance decisions on the server without distributed-system overhead, for eight seeded changes.\n\n## Decision\n\nA React SPA calls one Node.js REST API. Module boundaries separate the state engine, the policy evaluator, the ledger, the seed and the controllers.\n\n## Consequences\n\nRejected: microservices (too much deployment for eight changes) and a server-rendered full-stack app (risks mixing the UI with ownership of transitions). Scales less independently, and production integrations may later need services extracted.\n\n\n## In the code\n\nserver/ and web/ are one repo and one deployable: web/src is a React SPA, server/ a Fastify API with engine, ledger, AI and seed modules.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "1",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Application style: a TypeScript modular monolith"
     }, {
-      "content" : "# 2. Backend framework: Fastify in strict TypeScript\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe API relies heavily on validation: role, mode, IDs and notes are all untrusted input.\n\n## Decision\n\nUse Fastify, or a similarly lightweight Node.js framework, with JSON schema validation and typed handlers.\n\n## Consequences\n\nRejected: Express (weaker built-in validation) and Next.js API routes (tie the domain API to the frontend's deployment). A little more setup, and the team must keep handlers thin.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 10. AI layer: deterministic, grounded in live data, no LLM calls\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe demo is recorded and judged on the recording, so an answer must be the same on every take. An\nexplanation of why a change is blocked must cite the actual finding, policy and ledger, never a\nplausible invention. A hosted model adds a key, a network dependency and variance.\n\n## Decision\n\nThe AI layer (risk summaries, finding explanations with remediations, the assistant, and policy\nsuggestions) is generated deterministically from the engine's live state. A suggested policy is\nadopted only as a draft, which does not enforce.\n\n## Consequences\n\nEvery answer is reproducible and traceable to data. It cannot answer questions outside the\ngovernance vocabulary it was written for; a model-backed version would need the same grounding and\nan evaluation before it replaced this one.\n\n## In the code\n\nserver/ai.ts: explainFinding, riskSummary, answer, policySuggestion; server/engine.ts\nadoptDraftPolicy() sets status draft.\n",
+      "date" : "2026-09-23T07:00:00Z",
+      "format" : "Markdown",
+      "id" : "10",
+      "status" : "Accepted",
+      "title" : "AI layer: deterministic, grounded in live data, no LLM calls"
+    }, {
+      "content" : "# 2. Backend framework: Fastify in strict TypeScript\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe API relies heavily on validation: role, mode, IDs and notes are all untrusted input.\n\n## Decision\n\nUse Fastify, or a similarly lightweight Node.js framework, with JSON schema validation and typed handlers.\n\n## Consequences\n\nRejected: Express (weaker built-in validation) and Next.js API routes (tie the domain API to the frontend's deployment). A little more setup, and the team must keep handlers thin.\n\n\n## In the code\n\nserver/app.ts builds the API on Fastify 5 in TypeScript; roles and modes are allow-listed in ShipGateEngine.parseRole and parseMode.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "2",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Backend framework: Fastify in strict TypeScript"
     }, {
-      "content" : "# 3. State persistence: in memory, seeded on startup\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe demo must be repeatable and must not claim production persistence.\n\n## Decision\n\nOne backend process holds all state in memory and seeds it deterministically at startup and on reset.\n\n## Consequences\n\nRejected: PostgreSQL (out of MVP scope) and browser-local state (would break server-side enforcement). State is lost on restart, there is no multi-instance write, and it is not fit for audit retention.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 3. State persistence: in memory, seeded on startup\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe demo must be repeatable and must not claim production persistence.\n\n## Decision\n\nOne backend process holds all state in memory and seeds it deterministically at startup and on reset.\n\n## Consequences\n\nRejected: PostgreSQL (out of MVP scope) and browser-local state (would break server-side enforcement). State is lost on restart, there is no multi-instance write, and it is not fit for audit retention.\n\n\n## In the code\n\nserver/engine.ts holds changes, findings, policies and the ledger in Maps and an array; reset() rebuilds them from server/seed.ts and sets advisory.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "3",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "State persistence: in memory, seeded on startup"
     }, {
-      "content" : "# 4. Client-server sync: synchronous REST with a re-fetch after each action\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe requirements prefer synchronous REST, and the pilot is 25 users.\n\n## Decision\n\nEvery mutation is a REST command, and the client re-fetches after each one.\n\n## Consequences\n\nRejected: WebSockets or SSE (unneeded at this scale) and GraphQL (adds schema complexity). No push updates, so concurrent viewers may need to refresh.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 4. Client-server sync: synchronous REST with a re-fetch after each action\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe requirements prefer synchronous REST, and the pilot is 25 users.\n\n## Decision\n\nEvery mutation is a REST command, and the client re-fetches after each one.\n\n## Consequences\n\nRejected: WebSockets or SSE (unneeded at this scale) and GraphQL (adds schema complexity). No push updates, so concurrent viewers may need to refresh.\n\n\n## In the code\n\nweb/src/api.ts calls /api/v1 with fetch and each page re-fetches after an action; there is no socket or GraphQL layer.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "4",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Client-server sync: synchronous REST with a re-fetch after each action"
     }, {
-      "content" : "# 5. Authorization: the demo role is request input, enforced on the server\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe app must work without login, yet an invalid state change must still be refused.\n\n## Decision\n\nThe selected role travels with each request, is allow-listed, and is checked on the server for every state-changing action.\n\n## Consequences\n\nRejected: real OAuth/OIDC (out of scope) and hiding actions in the UI only (bypassable). The actor is a selected role, not a verified person, so the audit evidence is demo evidence.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 5. Authorization: the demo role is request input, enforced on the server\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nThe app must work without login, yet an invalid state change must still be refused.\n\n## Decision\n\nThe selected role travels with each request, is allow-listed, and is checked on the server for every state-changing action.\n\n## Consequences\n\nRejected: real OAuth/OIDC (out of scope) and hiding actions in the UI only (bypassable). The actor is a selected role, not a verified person, so the audit evidence is demo evidence.\n\n\n## In the code\n\nserver/engine.ts requireRole() refuses any action by the wrong demo role with 403 ROLE_FORBIDDEN, and appends the refusal to the ledger before throwing.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "5",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Authorization: the demo role is request input, enforced on the server"
     }, {
-      "content" : "# 6. Gate policy: a threshold-based severity evaluator\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nGates must block on severity consistently across every seeded finding, without policy CRUD.\n\n## Decision\n\nEach policy blocks open findings at or above its threshold. The seeded policy is Secrets must not ship: high and above, owned by Security Owner.\n\n## Consequences\n\nRejected: a hard-coded CHG-1042 check (unmaintainable) and general policy authoring (out of scope). Limited to the seeded policy taxonomy in the MVP.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 6. Gate policy: a threshold-based severity evaluator\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nGates must block on severity consistently across every seeded finding, without policy CRUD.\n\n## Decision\n\nEach policy blocks open findings at or above its threshold. The seeded policy is Secrets must not ship: high and above, owned by Security Owner.\n\n## Consequences\n\nRejected: a hard-coded CHG-1042 check (unmaintainable) and general policy authoring (out of scope). Limited to the seeded policy taxonomy in the MVP.\n\n\n## In the code\n\nserver/engine.ts blockingFor() matches open findings to each active policy by category (applies_to) and severity rank; the seeded policy is POL-001 Secrets must not ship.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "6",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Gate policy: a threshold-based severity evaluator"
     }, {
-      "content" : "# 7. Audit model: a hash-chained, append-only ledger kept in the app\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nEvery success and refusal must be evidence, and a plain activity log is not tamper-evident.\n\n## Decision\n\nEach ledger event carries the SHA-256 hash of its predecessor. A transition is not shown as successful unless its append succeeded.\n\n## Consequences\n\nRejected: a plain log (not tamper-evident) and durable immutable storage (out of scope). Not legally durable across reset or restart; production would need write-once storage and retention.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 7. Audit model: a hash-chained, append-only ledger kept in the app\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nEvery success and refusal must be evidence, and a plain activity log is not tamper-evident.\n\n## Decision\n\nEach ledger event carries the SHA-256 hash of its predecessor. A transition is not shown as successful unless its append succeeded.\n\n## Consequences\n\nRejected: a plain log (not tamper-evident) and durable immutable storage (out of scope). Not legally durable across reset or restart; production would need write-once storage and retention.\n\n\n## In the code\n\nserver/ledger.ts hashes each event with its predecessor's hash (SHA-256 over a canonical field list) and verifyChain() recomputes every link.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "7",
-      "status" : "Proposed",
+      "status" : "Accepted",
       "title" : "Audit model: a hash-chained, append-only ledger kept in the app"
     }, {
-      "content" : "# 8. Deployment: Forge Shipping to AWS ECS\n\nDate: 2026-09-23\n\n## Status\n\nProposed\n\n## Context\n\nThe policies require supply-chain scanning, artifact integrity and gated promotion. No cloud provider was specified.\n\n## Decision\n\nForge Shipping runs the Node build, builds a Docker image, runs the SonarQube, Snyk, gitleaks, Semgrep and Grype scans, signs the image, pushes it to ECR, and deploys to ECS through dev, staging and a manual gate.\n\n## Consequences\n\nRejected: manual deploys (not repeatable) and full GitOps (too much to operate). Adds CI configuration work even for a demo.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n",
+      "content" : "# 8. Deployment: Forge Shipping to AWS ECS\n\nDate: 2026-09-23\n\n## Status\n\nSuperseded\n\n## Context\n\nThe policies require supply-chain scanning, artifact integrity and gated promotion. No cloud provider was specified.\n\n## Decision\n\nForge Shipping runs the Node build, builds a Docker image, runs the SonarQube, Snyk, gitleaks, Semgrep and Grype scans, signs the image, pushes it to ECR, and deploys to ECS through dev, staging and a manual gate.\n\n## Consequences\n\nRejected: manual deploys (not repeatable) and full GitOps (too much to operate). Adds CI configuration work even for a demo.\n\nSource: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.\n\nSuperseded by decision 9: the app deploys as one process on Render, because in-memory state needs a single long-running instance.\n",
       "date" : "2026-09-23T07:00:00Z",
       "format" : "Markdown",
       "id" : "8",
-      "status" : "Proposed",
+      "status" : "Superseded",
       "title" : "Deployment: Forge Shipping to AWS ECS"
+    }, {
+      "content" : "# 9. Deployment: one long-running process on Render\n\nDate: 2026-09-23\n\n## Status\n\nAccepted\n\n## Context\n\nAll governance state lives in one process's memory (decision 3). Two instances would hold two\ndifferent ledgers, and a platform that scales to zero would reset the demo between a judge's clicks.\nDecision 8's Forge Shipping to ECS pipeline was not built.\n\n## Decision\n\nDeploy as a single Render web service (`render.yaml`): `npm run build` produces the SPA in `dist/`,\nand `npm start` runs one Node 22 process that serves both the SPA and `/api/v1`, with\n`/api/v1/health` as the health check. Supersedes decision 8.\n\n## Consequences\n\nOne URL, no CORS, nothing to coordinate. The free plan may sleep when idle and a restart reseeds the\ndemo, which Reset demo already does on purpose. It cannot scale out without persistent storage.\n\n## In the code\n\nrender.yaml; server/app.ts serves dist/ with @fastify/static and falls back to index.html for\nnon-API routes.\n",
+      "date" : "2026-09-23T07:00:00Z",
+      "format" : "Markdown",
+      "id" : "9",
+      "status" : "Accepted",
+      "title" : "Deployment: one long-running process on Render"
     } ]
   },
   "id" : 0,
@@ -67,77 +81,65 @@
         "containerId" : "7",
         "deploymentGroups" : [ "Default" ],
         "environment" : "Demo",
-        "id" : "86",
+        "id" : "62",
         "instanceId" : 1,
         "properties" : {
-          "structurizr.dsl.identifier" : "f6586143-e615-4874-a92b-5ffd86ed0aa6"
+          "structurizr.dsl.identifier" : "9b558468-fdb1-4345-a9b4-588dbd08c350"
         },
         "relationships" : [ {
-          "description" : "Calls change commands and reads on",
-          "destinationId" : "90",
-          "id" : "91",
-          "linkedRelationshipId" : "54",
-          "sourceId" : "86",
+          "description" : "Calls commands and reads on",
+          "destinationId" : "65",
+          "id" : "66",
+          "linkedRelationshipId" : "53",
+          "sourceId" : "62",
           "technology" : "REST JSON · HTTPS"
         } ],
         "tags" : "Container Instance"
       } ],
       "description" : "No login: every visitor lands as Approver.",
       "environment" : "Demo",
-      "id" : "85",
+      "id" : "61",
       "instances" : "1",
       "name" : "Visitor's browser",
       "properties" : {
-        "structurizr.dsl.identifier" : "ce8ca7e1-4709-4d3f-b562-86188af2ce3d"
+        "structurizr.dsl.identifier" : "0d0a2f3e-949e-4073-bc00-88951a9502fc"
       },
       "tags" : "Element,Deployment Node",
       "technology" : "Browser"
     }, {
       "children" : [ {
-        "children" : [ {
-          "containerInstances" : [ {
-            "containerId" : "15",
-            "deploymentGroups" : [ "Default" ],
-            "environment" : "Demo",
-            "id" : "90",
-            "instanceId" : 1,
-            "properties" : {
-              "structurizr.dsl.identifier" : "89f9a9d7-441c-45e9-b512-b146f455d3b4"
-            },
-            "tags" : "Container Instance"
-          } ],
-          "description" : "Serves the built SPA assets and the API from one process.",
+        "containerInstances" : [ {
+          "containerId" : "15",
+          "deploymentGroups" : [ "Default" ],
           "environment" : "Demo",
-          "id" : "89",
-          "instances" : "1",
-          "name" : "ShipGate container",
+          "id" : "65",
+          "instanceId" : 1,
           "properties" : {
-            "structurizr.dsl.identifier" : "45857111-fbc4-4d79-83c9-3feaa1d61afd"
+            "structurizr.dsl.identifier" : "3ad68ae2-fade-4499-8d39-d8f33bcfbe65"
           },
-          "tags" : "Element,Deployment Node",
-          "technology" : "Docker · Node.js 22"
+          "tags" : "Container Instance"
         } ],
-        "description" : "One task, one container: state lives and dies with it.",
+        "description" : "One long-running process serves dist/ and the API; health check /api/v1/health.",
         "environment" : "Demo",
-        "id" : "88",
+        "id" : "64",
         "instances" : "1",
-        "name" : "ECS Fargate",
+        "name" : "shipgate",
         "properties" : {
-          "structurizr.dsl.identifier" : "d14409fd-6b11-47fe-a1df-dea05cf74815"
+          "structurizr.dsl.identifier" : "a5f6fa05-a185-48d0-901c-181ab50ce816"
         },
         "tags" : "Element,Deployment Node",
-        "technology" : "ECS"
+        "technology" : "tsx server/index.ts"
       } ],
-      "description" : "The concrete default the artifact picks; no provider was specified.",
+      "description" : "Web service, free plan, built with npm run build.",
       "environment" : "Demo",
-      "id" : "87",
+      "id" : "63",
       "instances" : "1",
-      "name" : "AWS",
+      "name" : "Render",
       "properties" : {
-        "structurizr.dsl.identifier" : "1041b8fb-c079-429c-9c38-2ac5ff4b414f"
+        "structurizr.dsl.identifier" : "8e0898cb-8c22-4bb4-a27a-8879f33d6ed3"
       },
       "tags" : "Element,Deployment Node",
-      "technology" : "Amazon Web Services"
+      "technology" : "PaaS · Node 22"
     } ],
     "people" : [ {
       "description" : "Submits changes and watches their governance status.",
@@ -147,29 +149,23 @@
         "structurizr.dsl.identifier" : "developer"
       },
       "relationships" : [ {
-        "description" : "Selects the Developer role in",
-        "destinationId" : "8",
-        "id" : "31",
+        "description" : "Submits a draft change from",
+        "destinationId" : "10",
+        "id" : "21",
         "sourceId" : "1",
         "tags" : "Relationship"
       }, {
-        "description" : "Selects the Developer role in",
+        "description" : "Submits a draft change from",
         "destinationId" : "7",
-        "id" : "32",
-        "linkedRelationshipId" : "31",
-        "sourceId" : "1"
-      }, {
-        "description" : "Selects the Developer role in",
-        "destinationId" : "6",
-        "id" : "33",
-        "linkedRelationshipId" : "31",
+        "id" : "22",
+        "linkedRelationshipId" : "21",
         "sourceId" : "1"
       }, {
         "description" : "Submits a draft change from",
-        "destinationId" : "10",
-        "id" : "34",
-        "sourceId" : "1",
-        "tags" : "Relationship"
+        "destinationId" : "6",
+        "id" : "23",
+        "linkedRelationshipId" : "21",
+        "sourceId" : "1"
       } ],
       "tags" : "Element,Person"
     }, {
@@ -182,25 +178,25 @@
       "relationships" : [ {
         "description" : "Scans the queue by verdict in",
         "destinationId" : "9",
-        "id" : "35",
+        "id" : "24",
         "sourceId" : "2",
         "tags" : "Relationship"
       }, {
         "description" : "Scans the queue by verdict in",
         "destinationId" : "7",
-        "id" : "36",
-        "linkedRelationshipId" : "35",
+        "id" : "25",
+        "linkedRelationshipId" : "24",
         "sourceId" : "2"
       }, {
         "description" : "Scans the queue by verdict in",
         "destinationId" : "6",
-        "id" : "37",
-        "linkedRelationshipId" : "35",
+        "id" : "26",
+        "linkedRelationshipId" : "24",
         "sourceId" : "2"
       }, {
-        "description" : "Approves and ships changes from",
+        "description" : "Approves, ships and asks the assistant from",
         "destinationId" : "10",
-        "id" : "38",
+        "id" : "27",
         "sourceId" : "2",
         "tags" : "Relationship"
       } ],
@@ -213,164 +209,222 @@
         "structurizr.dsl.identifier" : "securityOwner"
       },
       "relationships" : [ {
-        "description" : "Resolves findings with a note from",
+        "description" : "Resolves blocking findings with a note from",
         "destinationId" : "10",
-        "id" : "39",
+        "id" : "28",
         "sourceId" : "3",
         "tags" : "Relationship"
       }, {
-        "description" : "Resolves findings with a note from",
+        "description" : "Resolves blocking findings with a note from",
         "destinationId" : "7",
-        "id" : "40",
-        "linkedRelationshipId" : "39",
+        "id" : "29",
+        "linkedRelationshipId" : "28",
         "sourceId" : "3"
       }, {
-        "description" : "Resolves findings with a note from",
+        "description" : "Resolves blocking findings with a note from",
         "destinationId" : "6",
-        "id" : "41",
-        "linkedRelationshipId" : "39",
+        "id" : "30",
+        "linkedRelationshipId" : "28",
         "sourceId" : "3"
+      }, {
+        "description" : "Adopts suggested draft policies from",
+        "destinationId" : "11",
+        "id" : "31",
+        "sourceId" : "3",
+        "tags" : "Relationship"
       } ],
       "tags" : "Element,Person"
     }, {
       "description" : "Inspects every screen and the ledger; may change nothing.",
       "id" : "4",
-      "name" : "Judge-Guest",
+      "name" : "Judge / Guest",
       "properties" : {
         "structurizr.dsl.identifier" : "judge"
       },
       "relationships" : [ {
         "description" : "Reads the legacy process in",
         "destinationId" : "13",
-        "id" : "42",
+        "id" : "32",
         "sourceId" : "4",
         "tags" : "Relationship"
       }, {
         "description" : "Reads the legacy process in",
         "destinationId" : "7",
-        "id" : "43",
-        "linkedRelationshipId" : "42",
+        "id" : "33",
+        "linkedRelationshipId" : "32",
         "sourceId" : "4"
       }, {
         "description" : "Reads the legacy process in",
         "destinationId" : "6",
-        "id" : "44",
-        "linkedRelationshipId" : "42",
+        "id" : "34",
+        "linkedRelationshipId" : "32",
         "sourceId" : "4"
       }, {
-        "description" : "Inspects the evidence chain in",
-        "destinationId" : "11",
-        "id" : "45",
+        "description" : "Verifies the evidence chain in",
+        "destinationId" : "12",
+        "id" : "35",
         "sourceId" : "4",
         "tags" : "Relationship"
       } ],
       "tags" : "Element,Person"
     } ],
     "softwareSystems" : [ {
-      "description" : "Builds, scans, signs and deploys the container image through gated promotion.",
+      "description" : "Generated the specification and work orders WO-001 to WO-029 this app implements.",
       "documentation" : { },
       "id" : "5",
-      "name" : "Forge Shipping",
+      "name" : "Opsera Forge",
       "properties" : {
         "structurizr.dsl.identifier" : "forge"
       },
       "relationships" : [ {
-        "description" : "Builds, scans and deploys the container image of",
-        "destinationId" : "15",
-        "id" : "83",
-        "sourceId" : "5",
-        "tags" : "Relationship",
-        "technology" : "Docker · ECR · ECS"
-      }, {
-        "description" : "Builds, scans and deploys the container image of",
+        "description" : "Generated the specification and work orders for",
         "destinationId" : "6",
-        "id" : "84",
-        "linkedRelationshipId" : "83",
+        "id" : "60",
         "sourceId" : "5",
-        "technology" : "Docker · ECR · ECS"
+        "tags" : "Relationship"
       } ],
       "tags" : "Element,Software System,Existing System"
     }, {
       "containers" : [ {
         "components" : [ {
-          "description" : "The demo role switcher and the advisory/enforced toggle.",
+          "description" : "Role switcher, advisory/enforced toggle, Reset demo, and hash routing.",
           "documentation" : { },
           "id" : "8",
-          "name" : "App header",
+          "name" : "App shell",
           "properties" : {
-            "structurizr.dsl.identifier" : "header"
+            "structurizr.dsl.identifier" : "appShell",
+            "code" : "web/src/App.tsx,web/src/main.tsx"
           },
           "relationships" : [ {
-            "description" : "Reads and sets mode through",
+            "description" : "Routes to",
+            "destinationId" : "9",
+            "id" : "36",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Routes to",
+            "destinationId" : "10",
+            "id" : "37",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Routes to",
+            "destinationId" : "11",
+            "id" : "38",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Routes to",
+            "destinationId" : "12",
+            "id" : "39",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Routes to",
+            "destinationId" : "13",
+            "id" : "40",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Reads and sets mode, and resets, through",
             "destinationId" : "14",
-            "id" : "47",
+            "id" : "41",
             "sourceId" : "8",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "React"
         }, {
-          "description" : "The change queue grouped by allow and block verdict.",
+          "description" : "Changes grouped by allow and block verdict, and the Security Owner queue.",
           "documentation" : { },
           "id" : "9",
           "name" : "Gate dashboard",
           "properties" : {
-            "structurizr.dsl.identifier" : "dashboard"
+            "structurizr.dsl.identifier" : "dashboard",
+            "code" : "web/src/pages/Dashboard.tsx"
           },
           "relationships" : [ {
+            "description" : "Reads the demo role and mode from",
+            "destinationId" : "8",
+            "id" : "42",
+            "sourceId" : "9",
+            "tags" : "Relationship"
+          }, {
             "description" : "Fetches grouped changes through",
             "destinationId" : "14",
-            "id" : "48",
+            "id" : "46",
             "sourceId" : "9",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "React"
         }, {
-          "description" : "Findings, policy evaluation, gate verdict and the ledger timeline for one change.",
+          "description" : "Findings, AI risk summary, gate verdict, BLOCKED banner, resolution, assistant and the change's ledger.",
           "documentation" : { },
           "id" : "10",
           "name" : "Change detail",
           "properties" : {
-            "structurizr.dsl.identifier" : "detail"
+            "structurizr.dsl.identifier" : "changeDetail",
+            "code" : "web/src/pages/ChangeDetail.tsx"
           },
           "relationships" : [ {
-            "description" : "Renders the ledger through",
-            "destinationId" : "11",
-            "id" : "46",
+            "description" : "Reads and switches the demo role through",
+            "destinationId" : "8",
+            "id" : "43",
             "sourceId" : "10",
             "tags" : "Relationship"
           }, {
-            "description" : "Sends governance commands through",
+            "description" : "Sends commands, questions and verifications through",
             "destinationId" : "14",
-            "id" : "49",
+            "id" : "47",
             "sourceId" : "10",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "React"
         }, {
-          "description" : "Each ledger event with actor, note and its chain link.",
+          "description" : "Active blocking policies, and the AI policy suggestion to adopt as a draft.",
           "documentation" : { },
           "id" : "11",
-          "name" : "Ledger timeline",
+          "name" : "Policies",
           "properties" : {
-            "structurizr.dsl.identifier" : "timeline"
+            "structurizr.dsl.identifier" : "policies",
+            "code" : "web/src/pages/Policies.tsx"
           },
+          "relationships" : [ {
+            "description" : "Reads the demo role from",
+            "destinationId" : "8",
+            "id" : "44",
+            "sourceId" : "11",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Fetches policies and the suggestion through",
+            "destinationId" : "14",
+            "id" : "48",
+            "sourceId" : "11",
+            "tags" : "Relationship"
+          } ],
           "tags" : "Element,Component",
           "technology" : "React"
         }, {
-          "description" : "Active blocking policies, thresholds and owner roles.",
+          "description" : "Every ledger event with its hash link, and whole-chain verification.",
           "documentation" : { },
           "id" : "12",
-          "name" : "Policy list",
+          "name" : "Audit ledger",
           "properties" : {
-            "structurizr.dsl.identifier" : "policyList"
+            "structurizr.dsl.identifier" : "ledgerPage",
+            "code" : "web/src/pages/Ledger.tsx"
           },
           "relationships" : [ {
-            "description" : "Fetches policies through",
+            "description" : "Reads the demo role from",
+            "destinationId" : "8",
+            "id" : "45",
+            "sourceId" : "12",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Fetches and verifies the ledger through",
             "destinationId" : "14",
-            "id" : "50",
+            "id" : "49",
             "sourceId" : "12",
             "tags" : "Relationship"
           } ],
@@ -382,409 +436,169 @@
           "id" : "13",
           "name" : "Legacy view",
           "properties" : {
-            "structurizr.dsl.identifier" : "legacy"
+            "structurizr.dsl.identifier" : "legacy",
+            "code" : "web/src/pages/Legacy.tsx"
           },
           "tags" : "Element,Component",
           "technology" : "React"
         }, {
-          "description" : "The only path from the browser to state; typed against shared schemas.",
+          "description" : "The only path from the browser to state; typed against the server's contracts.",
           "documentation" : { },
           "id" : "14",
           "name" : "API client",
           "properties" : {
-            "structurizr.dsl.identifier" : "apiClient"
+            "structurizr.dsl.identifier" : "apiClient",
+            "code" : "web/src/api.ts"
           },
           "relationships" : [ {
-            "description" : "Calls change commands and reads on",
+            "description" : "Calls commands and reads on",
             "destinationId" : "16",
-            "id" : "51",
+            "id" : "50",
             "sourceId" : "14",
             "tags" : "Relationship",
             "technology" : "REST JSON · HTTPS"
           }, {
-            "description" : "Calls change commands and reads on",
+            "description" : "Calls commands and reads on",
             "destinationId" : "15",
-            "id" : "52",
-            "linkedRelationshipId" : "51",
+            "id" : "51",
+            "linkedRelationshipId" : "50",
             "sourceId" : "14",
-            "technology" : "REST JSON · HTTPS"
-          }, {
-            "description" : "Calls the resolve command on",
-            "destinationId" : "17",
-            "id" : "55",
-            "sourceId" : "14",
-            "tags" : "Relationship",
-            "technology" : "REST JSON · HTTPS"
-          }, {
-            "description" : "Reads policies from",
-            "destinationId" : "18",
-            "id" : "57",
-            "sourceId" : "14",
-            "tags" : "Relationship",
-            "technology" : "REST JSON · HTTPS"
-          }, {
-            "description" : "Reads and sets mode on",
-            "destinationId" : "19",
-            "id" : "59",
-            "sourceId" : "14",
-            "tags" : "Relationship",
-            "technology" : "REST JSON · HTTPS"
-          }, {
-            "description" : "Calls reset on",
-            "destinationId" : "20",
-            "id" : "61",
-            "sourceId" : "14",
-            "tags" : "Relationship",
             "technology" : "REST JSON · HTTPS"
           } ],
           "tags" : "Element,Component",
           "technology" : "TypeScript · fetch"
         } ],
-        "description" : "Dashboard, change detail, policy list and legacy mock; owns no governance state.",
+        "description" : "Gate dashboard, change detail, policies, audit ledger and legacy mock; owns no governance state.",
         "documentation" : { },
         "id" : "7",
-        "name" : "Single-page app",
+        "name" : "Web app",
         "properties" : {
           "structurizr.dsl.identifier" : "spa"
         },
         "relationships" : [ {
-          "description" : "Calls change commands and reads on",
+          "description" : "Calls commands and reads on",
           "destinationId" : "16",
-          "id" : "53",
-          "linkedRelationshipId" : "51",
+          "id" : "52",
+          "linkedRelationshipId" : "50",
           "sourceId" : "7",
           "technology" : "REST JSON · HTTPS"
         }, {
-          "description" : "Calls change commands and reads on",
+          "description" : "Calls commands and reads on",
           "destinationId" : "15",
-          "id" : "54",
-          "linkedRelationshipId" : "51",
-          "sourceId" : "7",
-          "technology" : "REST JSON · HTTPS"
-        }, {
-          "description" : "Calls the resolve command on",
-          "destinationId" : "17",
-          "id" : "56",
-          "linkedRelationshipId" : "55",
-          "sourceId" : "7",
-          "technology" : "REST JSON · HTTPS"
-        }, {
-          "description" : "Reads policies from",
-          "destinationId" : "18",
-          "id" : "58",
-          "linkedRelationshipId" : "57",
-          "sourceId" : "7",
-          "technology" : "REST JSON · HTTPS"
-        }, {
-          "description" : "Reads and sets mode on",
-          "destinationId" : "19",
-          "id" : "60",
-          "linkedRelationshipId" : "59",
-          "sourceId" : "7",
-          "technology" : "REST JSON · HTTPS"
-        }, {
-          "description" : "Calls reset on",
-          "destinationId" : "20",
-          "id" : "62",
-          "linkedRelationshipId" : "61",
+          "id" : "53",
+          "linkedRelationshipId" : "50",
           "sourceId" : "7",
           "technology" : "REST JSON · HTTPS"
         } ],
         "tags" : "Element,Container",
-        "technology" : "React · TypeScript · Vite"
+        "technology" : "React 18 · TypeScript · Vite"
       }, {
         "components" : [ {
-          "description" : "Submit, approve, ship, list and detail endpoints for changes.",
+          "description" : "Versioned /api/v1 command endpoints and the SPA's static files; decides nothing.",
           "documentation" : { },
           "id" : "16",
-          "name" : "Change controller",
+          "name" : "REST routes",
           "properties" : {
-            "structurizr.dsl.identifier" : "changeController"
+            "structurizr.dsl.identifier" : "routes",
+            "code" : "server/app.ts,server/index.ts"
           },
           "relationships" : [ {
-            "description" : "Checks the demo role with",
-            "destinationId" : "22",
-            "id" : "63",
+            "description" : "Runs every command and read through",
+            "destinationId" : "17",
+            "id" : "54",
             "sourceId" : "16",
             "tags" : "Relationship"
           }, {
-            "description" : "Requests transitions from",
-            "destinationId" : "23",
-            "id" : "65",
-            "sourceId" : "16",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Returns refusals through",
-            "destinationId" : "21",
-            "id" : "70",
-            "sourceId" : "16",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Appends refused-role events to",
-            "destinationId" : "26",
-            "id" : "72",
+            "description" : "Asks for summaries, explanations, answers and suggestions from",
+            "destinationId" : "19",
+            "id" : "55",
             "sourceId" : "16",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
-          "technology" : "Fastify route"
+          "technology" : "Fastify"
         }, {
-          "description" : "The resolve endpoint; requires a non-empty note.",
+          "description" : "State machine, role checks, policy gates and mode; nothing reaches SHIPPED past an open blocking finding in enforced mode.",
           "documentation" : { },
           "id" : "17",
-          "name" : "Finding controller",
+          "name" : "Governance engine",
           "properties" : {
-            "structurizr.dsl.identifier" : "findingController"
+            "structurizr.dsl.identifier" : "engine",
+            "code" : "server/engine.ts"
           },
           "relationships" : [ {
-            "description" : "Checks the demo role with",
-            "destinationId" : "22",
-            "id" : "64",
+            "description" : "Appends every transition and refusal to, and verifies the chain with",
+            "destinationId" : "18",
+            "id" : "56",
             "sourceId" : "17",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Requests finding resolution from",
-            "destinationId" : "23",
-            "id" : "66",
-            "sourceId" : "17",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Returns refusals through",
-            "destinationId" : "21",
-            "id" : "71",
-            "sourceId" : "17",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "Fastify route"
-        }, {
-          "description" : "Lists active policies.",
-          "documentation" : { },
-          "id" : "18",
-          "name" : "Policy controller",
-          "properties" : {
-            "structurizr.dsl.identifier" : "policyController"
-          },
-          "relationships" : [ {
-            "description" : "Reads policy verdicts from",
-            "destinationId" : "24",
-            "id" : "67",
-            "sourceId" : "18",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "Fastify route"
-        }, {
-          "description" : "Reads and sets advisory or enforced mode.",
-          "documentation" : { },
-          "id" : "19",
-          "name" : "Mode controller",
-          "properties" : {
-            "structurizr.dsl.identifier" : "modeController"
-          },
-          "relationships" : [ {
-            "description" : "Reads and sets mode through",
-            "destinationId" : "25",
-            "id" : "68",
-            "sourceId" : "19",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "Fastify route"
-        }, {
-          "description" : "Restores the seed and advisory mode.",
-          "documentation" : { },
-          "id" : "20",
-          "name" : "Reset controller",
-          "properties" : {
-            "structurizr.dsl.identifier" : "resetController"
-          },
-          "relationships" : [ {
-            "description" : "Triggers reset through",
-            "destinationId" : "29",
-            "id" : "69",
-            "sourceId" : "20",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "Fastify route"
-        }, {
-          "description" : "Maps refusals to 400, 403, 404 and 409 envelopes.",
-          "documentation" : { },
-          "id" : "21",
-          "name" : "Error handler",
-          "properties" : {
-            "structurizr.dsl.identifier" : "errorHandler"
-          },
-          "tags" : "Element,Component",
-          "technology" : "Fastify hook"
-        }, {
-          "description" : "Allow-lists the selected role and refuses actions it may not take.",
-          "documentation" : { },
-          "id" : "22",
-          "name" : "Demo role guard",
-          "properties" : {
-            "structurizr.dsl.identifier" : "roleGuard"
-          },
-          "tags" : "Element,Component",
-          "technology" : "TypeScript"
-        }, {
-          "description" : "Owns the state machine; nothing reaches SHIPPED past an open blocking finding in enforced mode.",
-          "documentation" : { },
-          "id" : "23",
-          "name" : "State transition engine",
-          "properties" : {
-            "structurizr.dsl.identifier" : "transitionEngine"
-          },
-          "relationships" : [ {
-            "description" : "Reads advisory or enforced from",
-            "destinationId" : "25",
-            "id" : "73",
-            "sourceId" : "23",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Asks for the gate verdict from",
-            "destinationId" : "24",
-            "id" : "74",
-            "sourceId" : "23",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Appends every transition and refusal to",
-            "destinationId" : "26",
-            "id" : "75",
-            "sourceId" : "23",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Updates change and finding state in",
-            "destinationId" : "30",
-            "id" : "76",
-            "sourceId" : "23",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "TypeScript"
-        }, {
-          "description" : "Compares open findings against each policy's block threshold.",
-          "documentation" : { },
-          "id" : "24",
-          "name" : "Policy evaluation engine",
-          "properties" : {
-            "structurizr.dsl.identifier" : "policyEngine"
-          },
-          "relationships" : [ {
-            "description" : "Reads open findings and active policies from",
-            "destinationId" : "30",
-            "id" : "77",
-            "sourceId" : "24",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "TypeScript"
-        }, {
-          "description" : "Holds the current advisory or enforced mode.",
-          "documentation" : { },
-          "id" : "25",
-          "name" : "Mode service",
-          "properties" : {
-            "structurizr.dsl.identifier" : "modeService"
-          },
-          "relationships" : [ {
-            "description" : "Keeps the mode value in",
-            "destinationId" : "30",
-            "id" : "78",
-            "sourceId" : "25",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "TypeScript"
-        }, {
-          "description" : "Appends every success and refusal, each linked to the previous hash.",
-          "documentation" : { },
-          "id" : "26",
-          "name" : "Hash ledger service",
-          "properties" : {
-            "structurizr.dsl.identifier" : "ledgerService"
-          },
-          "relationships" : [ {
-            "description" : "Links each event to the previous hash with",
-            "destinationId" : "27",
-            "id" : "79",
-            "sourceId" : "26",
             "tags" : "Relationship",
             "technology" : "SHA-256"
           }, {
-            "description" : "Appends hash-chained events to",
-            "destinationId" : "30",
-            "id" : "80",
-            "sourceId" : "26",
+            "description" : "Rebuilds its state on start and on Reset demo from",
+            "destinationId" : "20",
+            "id" : "57",
+            "sourceId" : "17",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "TypeScript"
         }, {
-          "description" : "Computes the SHA-256 link for each ledger event.",
+          "description" : "Appends each event with the SHA-256 of its predecessor, and verifies the whole chain.",
           "documentation" : { },
-          "id" : "27",
-          "name" : "Hash provider",
+          "id" : "18",
+          "name" : "Hash ledger",
           "properties" : {
-            "structurizr.dsl.identifier" : "hasher"
+            "structurizr.dsl.identifier" : "ledger",
+            "code" : "server/ledger.ts"
           },
           "tags" : "Element,Component",
           "technology" : "node:crypto"
         }, {
-          "description" : "Builds CHG-1041 to CHG-1048 and the seeded policy deterministically.",
+          "description" : "Risk summaries, finding explanations, assistant answers and policy suggestions, generated deterministically from live data.",
           "documentation" : { },
-          "id" : "28",
-          "name" : "Seed data loader",
+          "id" : "19",
+          "name" : "AI layer",
           "properties" : {
-            "structurizr.dsl.identifier" : "seedLoader"
+            "structurizr.dsl.identifier" : "ai",
+            "code" : "server/ai.ts"
           },
           "relationships" : [ {
-            "description" : "Writes the deterministic seed into",
-            "destinationId" : "30",
-            "id" : "82",
-            "sourceId" : "28",
+            "description" : "Reads findings, policies, gates and the ledger from",
+            "destinationId" : "17",
+            "id" : "59",
+            "sourceId" : "19",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "TypeScript · no LLM calls"
+        }, {
+          "description" : "CHG-1041 to CHG-1048, ten findings, the policy Secrets must not ship, and a seeded ledger.",
+          "documentation" : { },
+          "id" : "20",
+          "name" : "Seed",
+          "properties" : {
+            "structurizr.dsl.identifier" : "seed",
+            "code" : "server/seed.ts"
+          },
+          "relationships" : [ {
+            "description" : "Chains the seeded history with",
+            "destinationId" : "18",
+            "id" : "58",
+            "sourceId" : "20",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "TypeScript"
-        }, {
-          "description" : "Rebuilds the store from the seed and sets advisory mode.",
-          "documentation" : { },
-          "id" : "29",
-          "name" : "Reset service",
-          "properties" : {
-            "structurizr.dsl.identifier" : "resetService"
-          },
-          "relationships" : [ {
-            "description" : "Rebuilds the dataset with",
-            "destinationId" : "28",
-            "id" : "81",
-            "sourceId" : "29",
-            "tags" : "Relationship"
-          } ],
-          "tags" : "Element,Component",
-          "technology" : "TypeScript"
-        }, {
-          "description" : "Changes, findings, policies, gates and ledger events, behind a store interface.",
-          "documentation" : { },
-          "id" : "30",
-          "name" : "In-memory store",
-          "properties" : {
-            "structurizr.dsl.identifier" : "store"
-          },
-          "tags" : "Element,Component",
-          "technology" : "ShipGateStore · process-local maps"
         } ],
-        "description" : "Owns all mutable state, policy evaluation, transitions, reset and the ledger.",
+        "description" : "Owns all mutable state, the policy gates, transitions, reset, the AI layer and the ledger.",
         "documentation" : { },
         "id" : "15",
-        "name" : "REST API",
+        "name" : "API server",
         "properties" : {
           "structurizr.dsl.identifier" : "api"
         },
         "tags" : "Element,Container",
-        "technology" : "Node.js 22 · Fastify · TypeScript"
+        "technology" : "Node.js 22 · Fastify 5 · TypeScript"
       } ],
       "description" : "Evaluates each change against blocking policies and records every decision in a hash-chained ledger.",
       "documentation" : { },
@@ -798,7 +612,7 @@
   },
   "name" : "ShipGate",
   "properties" : {
-    "structurizr.inspection.error" : "42",
+    "structurizr.inspection.error" : "38",
     "structurizr.inspection.info" : "0",
     "structurizr.inspection.ignore" : "0",
     "structurizr.inspection.warning" : "0"
@@ -815,7 +629,7 @@
         "vertices" : false
       },
       "containerId" : "7",
-      "description" : "The screens and the one client every screen talks through.",
+      "description" : "The app shell routes to five screens, and every screen reaches state through one client.",
       "elements" : [ {
         "id" : "1",
         "x" : 0,
@@ -867,23 +681,43 @@
       } ],
       "externalContainerBoundariesVisible" : false,
       "key" : "Screens",
-      "name" : "Component View: ShipGate - Single-page app",
+      "name" : "Component View: ShipGate - Web app",
       "order" : 3,
       "properties" : {
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
+        "id" : "21"
+      }, {
+        "id" : "24"
+      }, {
+        "id" : "27"
+      }, {
+        "id" : "28"
+      }, {
         "id" : "31"
       }, {
-        "id" : "34"
+        "id" : "32"
       }, {
         "id" : "35"
+      }, {
+        "id" : "36"
+      }, {
+        "id" : "37"
       }, {
         "id" : "38"
       }, {
         "id" : "39"
       }, {
+        "id" : "40"
+      }, {
+        "id" : "41"
+      }, {
         "id" : "42"
+      }, {
+        "id" : "43"
+      }, {
+        "id" : "44"
       }, {
         "id" : "45"
       }, {
@@ -895,9 +729,7 @@
       }, {
         "id" : "49"
       }, {
-        "id" : "50"
-      }, {
-        "id" : "52"
+        "id" : "51"
       } ]
     }, {
       "automaticLayout" : {
@@ -910,7 +742,7 @@
         "vertices" : false
       },
       "containerId" : "15",
-      "description" : "Controllers delegate; the transition engine decides; the ledger records both outcomes.",
+      "description" : "Routes decide nothing; the engine decides; the ledger records both outcomes.",
       "elements" : [ {
         "id" : "7",
         "x" : 0,
@@ -935,104 +767,28 @@
         "id" : "20",
         "x" : 0,
         "y" : 0
-      }, {
-        "id" : "21",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "22",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "23",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "24",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "25",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "26",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "27",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "28",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "29",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "30",
-        "x" : 0,
-        "y" : 0
       } ],
       "externalContainerBoundariesVisible" : false,
       "key" : "Engine",
-      "name" : "Component View: ShipGate - REST API",
+      "name" : "Component View: ShipGate - API server",
       "order" : 4,
       "properties" : {
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "id" : "53"
+        "id" : "52"
+      }, {
+        "id" : "54"
+      }, {
+        "id" : "55"
       }, {
         "id" : "56"
       }, {
+        "id" : "57"
+      }, {
         "id" : "58"
       }, {
-        "id" : "60"
-      }, {
-        "id" : "62"
-      }, {
-        "id" : "63"
-      }, {
-        "id" : "64"
-      }, {
-        "id" : "65"
-      }, {
-        "id" : "66"
-      }, {
-        "id" : "67"
-      }, {
-        "id" : "68"
-      }, {
-        "id" : "69"
-      }, {
-        "id" : "70"
-      }, {
-        "id" : "71"
-      }, {
-        "id" : "72"
-      }, {
-        "id" : "73"
-      }, {
-        "id" : "74"
-      }, {
-        "id" : "75"
-      }, {
-        "id" : "76"
-      }, {
-        "id" : "77"
-      }, {
-        "id" : "78"
-      }, {
-        "id" : "79"
-      }, {
-        "id" : "80"
-      }, {
-        "id" : "81"
-      }, {
-        "id" : "82"
+        "id" : "59"
       } ]
     } ],
     "configuration" : {
@@ -1121,7 +877,7 @@
         "rankSeparation" : 500,
         "vertices" : false
       },
-      "description" : "The browser app owns no state; the API owns all of it.",
+      "description" : "The browser app owns no state; the API server owns all of it.",
       "elements" : [ {
         "id" : "1",
         "x" : 0,
@@ -1136,10 +892,6 @@
         "y" : 0
       }, {
         "id" : "4",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "5",
         "x" : 0,
         "y" : 0
       }, {
@@ -1159,17 +911,15 @@
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "id" : "32"
+        "id" : "22"
       }, {
-        "id" : "36"
+        "id" : "25"
       }, {
-        "id" : "40"
+        "id" : "29"
       }, {
-        "id" : "43"
+        "id" : "33"
       }, {
-        "id" : "54"
-      }, {
-        "id" : "83"
+        "id" : "53"
       } ],
       "softwareSystemId" : "6"
     } ],
@@ -1183,38 +933,34 @@
         "rankSeparation" : 500,
         "vertices" : false
       },
-      "description" : "One container on ECS; the SPA runs in the visitor's browser.",
+      "description" : "One process on Render; the SPA runs in the visitor's browser.",
       "elements" : [ {
-        "id" : "85",
+        "id" : "61",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "86",
+        "id" : "62",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "87",
+        "id" : "63",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "88",
+        "id" : "64",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "89",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "90",
+        "id" : "65",
         "x" : 0,
         "y" : 0
       } ],
       "environment" : "Demo",
       "key" : "Deployed",
       "name" : "Deployment View: ShipGate - Demo",
-      "order" : 8,
+      "order" : 9,
       "relationships" : [ {
-        "id" : "91"
+        "id" : "66"
       } ],
       "softwareSystemId" : "6"
     } ],
@@ -1243,101 +989,60 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "22",
+        "id" : "17",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "23",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "24",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "25",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "26",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "30",
+        "id" : "18",
         "x" : 0,
         "y" : 0
       } ],
       "externalBoundariesVisible" : false,
       "key" : "Advisory",
-      "name" : "Dynamic View: ShipGate - REST API",
+      "name" : "Dynamic View: ShipGate - API server",
       "order" : 5,
       "properties" : {
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "description" : "Approves CHG-1042 in advisory mode",
-        "id" : "36",
+        "description" : "Clicks Approve on CHG-1042 in advisory mode",
+        "id" : "25",
         "order" : "1",
         "response" : false
       }, {
         "description" : "POST /api/v1/changes/CHG-1042/approve",
-        "id" : "53",
+        "id" : "52",
         "order" : "2",
         "response" : false
       }, {
-        "description" : "Confirms the Approver role",
-        "id" : "63",
+        "description" : "approve(): Approver, IN_REVIEW, gate blocks, mode advisory",
+        "id" : "54",
         "order" : "3",
         "response" : false
       }, {
-        "description" : "Requests IN_REVIEW to APPROVED",
-        "id" : "65",
+        "description" : "Appends APPROVED as advisory_exception: open CRITICAL secret handling",
+        "id" : "56",
         "order" : "4",
         "response" : false
       }, {
-        "description" : "Reads advisory",
-        "id" : "73",
+        "description" : "Clicks Ship",
+        "id" : "25",
         "order" : "5",
         "response" : false
       }, {
-        "description" : "Gets a block verdict on the CRITICAL finding",
-        "id" : "74",
+        "description" : "POST /api/v1/changes/CHG-1042/ship",
+        "id" : "52",
         "order" : "6",
         "response" : false
       }, {
-        "description" : "Moves CHG-1042 to APPROVED anyway",
-        "id" : "76",
+        "description" : "ship(): re-evaluates the gate, still advisory",
+        "id" : "54",
         "order" : "7",
         "response" : false
       }, {
-        "description" : "Records an approval with an open CRITICAL finding",
-        "id" : "75",
+        "description" : "Appends SHIPPED as advisory_exception",
+        "id" : "56",
         "order" : "8",
-        "response" : false
-      }, {
-        "description" : "Ships CHG-1042",
-        "id" : "36",
-        "order" : "9",
-        "response" : false
-      }, {
-        "description" : "POST /api/v1/changes/CHG-1042/ship",
-        "id" : "53",
-        "order" : "10",
-        "response" : false
-      }, {
-        "description" : "Requests APPROVED to SHIPPED",
-        "id" : "65",
-        "order" : "11",
-        "response" : false
-      }, {
-        "description" : "Moves CHG-1042 to SHIPPED",
-        "id" : "76",
-        "order" : "12",
-        "response" : false
-      }, {
-        "description" : "Records SHIPPED under advisory mode",
-        "id" : "75",
-        "order" : "13",
         "response" : false
       } ]
     }, {
@@ -1350,7 +1055,7 @@
         "rankSeparation" : 500,
         "vertices" : false
       },
-      "description" : "Treatment: the identical approval is refused, cited and recorded.",
+      "description" : "Treatment: the identical approval is refused, cited, routed and recorded.",
       "elementId" : "15",
       "elements" : [ {
         "id" : "2",
@@ -1365,100 +1070,46 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "21",
+        "id" : "17",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "22",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "23",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "24",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "25",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "26",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "27",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "30",
+        "id" : "18",
         "x" : 0,
         "y" : 0
       } ],
       "externalBoundariesVisible" : false,
       "key" : "Enforced",
-      "name" : "Dynamic View: ShipGate - REST API",
+      "name" : "Dynamic View: ShipGate - API server",
       "order" : 6,
       "properties" : {
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "description" : "Approves CHG-1042 in enforced mode",
-        "id" : "36",
+        "description" : "Clicks Approve on CHG-1042 in enforced mode",
+        "id" : "25",
         "order" : "1",
         "response" : false
       }, {
         "description" : "POST /api/v1/changes/CHG-1042/approve",
-        "id" : "53",
+        "id" : "52",
         "order" : "2",
         "response" : false
       }, {
-        "description" : "Confirms the Approver role",
-        "id" : "63",
+        "description" : "approve(): Secrets must not ship blocks on F-2001",
+        "id" : "54",
         "order" : "3",
         "response" : false
       }, {
-        "description" : "Requests IN_REVIEW to APPROVED",
-        "id" : "65",
+        "description" : "Appends the refusal: IN_REVIEW to BLOCKED, routed to Security Owner",
+        "id" : "56",
         "order" : "4",
         "response" : false
       }, {
-        "description" : "Reads enforced",
-        "id" : "73",
+        "description" : "409 POLICY_BLOCKED with the cited policy and the open finding",
+        "id" : "52",
         "order" : "5",
-        "response" : false
-      }, {
-        "description" : "Asks for the gate verdict",
-        "id" : "74",
-        "order" : "6",
-        "response" : false
-      }, {
-        "description" : "Finds the open CRITICAL secret-handling finding",
-        "id" : "77",
-        "order" : "7",
-        "response" : false
-      }, {
-        "description" : "Refuses the approval and moves CHG-1042 to BLOCKED",
-        "id" : "76",
-        "order" : "8",
-        "response" : false
-      }, {
-        "description" : "Records the refused approval, citing Secrets must not ship",
-        "id" : "75",
-        "order" : "9",
-        "response" : false
-      }, {
-        "description" : "Links it to the previous event",
-        "id" : "79",
-        "order" : "10",
-        "response" : false
-      }, {
-        "description" : "Returns 409 with the cited policy",
-        "id" : "70",
-        "order" : "11",
-        "response" : false
+        "response" : true
       } ]
     }, {
       "automaticLayout" : {
@@ -1493,93 +1144,123 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "22",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "23",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "24",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "26",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "30",
+        "id" : "18",
         "x" : 0,
         "y" : 0
       } ],
       "externalBoundariesVisible" : false,
       "key" : "Resolve",
-      "name" : "Dynamic View: ShipGate - REST API",
+      "name" : "Dynamic View: ShipGate - API server",
       "order" : 7,
       "properties" : {
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "description" : "Resolves the finding: credential rotated",
-        "id" : "40",
+        "description" : "Opens CHG-1042 as Security Owner and resolves F-2001 with a note",
+        "id" : "29",
         "order" : "1",
         "response" : false
       }, {
-        "description" : "POST /api/v1/findings/{id}/resolve",
-        "id" : "56",
+        "description" : "POST /api/v1/findings/F-2001/resolve",
+        "id" : "52",
         "order" : "2",
         "response" : false
       }, {
-        "description" : "Confirms the Security Owner role",
-        "id" : "64",
+        "description" : "resolveFinding(): note required, gate re-evaluated",
+        "id" : "54",
         "order" : "3",
         "response" : false
       }, {
-        "description" : "Requests resolution",
-        "id" : "66",
+        "description" : "Appends the resolution, then BLOCKED to RESOLVED",
+        "id" : "56",
         "order" : "4",
         "response" : false
       }, {
-        "description" : "Marks the finding resolved and CHG-1042 RESOLVED",
-        "id" : "76",
+        "description" : "Re-approves, then ships",
+        "id" : "25",
         "order" : "5",
         "response" : false
       }, {
-        "description" : "Records RESOLVED with the owner's note",
-        "id" : "75",
+        "description" : "POST approve, then POST ship",
+        "id" : "52",
         "order" : "6",
         "response" : false
       }, {
-        "description" : "Re-approves and ships CHG-1042",
-        "id" : "36",
+        "description" : "approve() and ship(): every gate allows",
+        "id" : "54",
         "order" : "7",
         "response" : false
       }, {
-        "description" : "POST approve, then POST ship",
-        "id" : "53",
+        "description" : "Appends APPROVED, then SHIPPED, chained after BLOCKED and RESOLVED",
+        "id" : "56",
         "order" : "8",
         "response" : false
+      } ]
+    }, {
+      "automaticLayout" : {
+        "applied" : false,
+        "edgeSeparation" : 0,
+        "implementation" : "Graphviz",
+        "nodeSeparation" : 400,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 500,
+        "vertices" : false
+      },
+      "description" : "The assistant answers why CHG-1042 is blocked, citing the live finding, policy and ledger.",
+      "elementId" : "15",
+      "elements" : [ {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
       }, {
-        "description" : "Requests APPROVED, then SHIPPED",
-        "id" : "65",
-        "order" : "9",
+        "id" : "7",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "16",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "17",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "19",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "externalBoundariesVisible" : false,
+      "key" : "Explain",
+      "name" : "Dynamic View: ShipGate - API server",
+      "order" : 8,
+      "properties" : {
+        "structurizr.tooltips" : "true"
+      },
+      "relationships" : [ {
+        "description" : "Asks: why is CHG-1042 blocked?",
+        "id" : "25",
+        "order" : "1",
         "response" : false
       }, {
-        "description" : "Gets an allow verdict",
-        "id" : "74",
-        "order" : "10",
+        "description" : "POST /api/v1/assistant",
+        "id" : "52",
+        "order" : "2",
         "response" : false
       }, {
-        "description" : "Moves CHG-1042 to SHIPPED",
-        "id" : "76",
-        "order" : "11",
+        "description" : "answer(CHG-1042, question)",
+        "id" : "55",
+        "order" : "3",
         "response" : false
       }, {
-        "description" : "Records SHIPPED, chained after BLOCKED and RESOLVED",
-        "id" : "75",
-        "order" : "12",
+        "description" : "Reads the blocking finding, the policy and the ledger",
+        "id" : "59",
+        "order" : "4",
         "response" : false
+      }, {
+        "description" : "An answer citing F-2001 and Secrets must not ship",
+        "id" : "52",
+        "order" : "5",
+        "response" : true
       } ]
     } ],
     "systemContextViews" : [ {
@@ -1592,7 +1273,7 @@
         "rankSeparation" : 500,
         "vertices" : false
       },
-      "description" : "Who uses ShipGate, and the one system that ships it.",
+      "description" : "Who uses ShipGate, and the platform that generated its specification.",
       "elements" : [ {
         "id" : "1",
         "x" : 0,
@@ -1626,15 +1307,15 @@
         "structurizr.tooltips" : "true"
       },
       "relationships" : [ {
-        "id" : "33"
+        "id" : "23"
       }, {
-        "id" : "37"
+        "id" : "26"
       }, {
-        "id" : "41"
+        "id" : "30"
       }, {
-        "id" : "44"
+        "id" : "34"
       }, {
-        "id" : "84"
+        "id" : "60"
       } ],
       "softwareSystemId" : "6"
     } ]

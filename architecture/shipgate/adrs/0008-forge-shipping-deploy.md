@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Superseded
 
 ## Context
 
@@ -19,3 +19,5 @@ Forge Shipping runs the Node build, builds a Docker image, runs the SonarQube, S
 Rejected: manual deploys (not repeatable) and full GitOps (too much to operate). Adds CI configuration work even for a demo.
 
 Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+Superseded by decision 9: the app deploys as one process on Render, because in-memory state needs a single long-running instance.

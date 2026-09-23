@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -18,4 +18,7 @@ One backend process holds all state in memory and seeds it deterministically at 
 
 Rejected: PostgreSQL (out of MVP scope) and browser-local state (would break server-side enforcement). State is lost on restart, there is no multi-instance write, and it is not fit for audit retention.
 
-Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+## In the code
+
+server/engine.ts holds changes, findings, policies and the ledger in Maps and an array; reset() rebuilds them from server/seed.ts and sets advisory.

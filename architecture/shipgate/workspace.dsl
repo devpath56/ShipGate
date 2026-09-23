@@ -2,27 +2,27 @@
  * ShipGate — release governance that turns advisory findings into enforced blocking gates, as a
  * versioned model.
  *
- * TAKEN FROM FORGE'S ARCHITECTURE ARTIFACT, NOT INVENTED. Every element is a box from that
- * document's component, API and security diagrams, under its own name; every trace step is a hop from
- * its approve-CHG-1042 sequence diagram. Three calls the artifact left open are made here, and each
- * is marked where it lands:
+ * THE CODE IS THE SOURCE, AND EVERY COMPONENT SAYS WHICH FILE IT IS. The first version of this model
+ * was transcribed from Forge's architecture artifact before any code existed; this one is read from
+ * server/ and web/src/ as landed on main (173b66e..1971ad3). Each component carries a "code"
+ * property naming its files, and architecture/drift.mjs refuses a push where the two disagree: a
+ * source file no component claims, a component whose file is gone, or an import between two
+ * components the model draws no line for.
  *
- *   1. THE DEMO ROLE GUARD IS A COMPONENT. The sequence diagram has it as a participant and the
- *      security diagram draws it as "Server Role Guard", but the component diagram omits it. A trace
- *      step must reuse a static relationship, so the guard needs a box.
- *   2. A CONTROLLER MAY APPEND TO THE LEDGER. The sequence appends a refused-role event straight from
- *      the API; the component diagram only has engine -> ledger. The edge is added, not the story.
- *   3. THE STORE IS A COMPONENT, NOT A CONTAINER. It is process-local maps inside the one API process
- *      (ADR 0003); drawing it as a container would claim a deployable unit that does not exist.
+ * WHAT CHANGED FROM THE ARTIFACT, because the code decided differently:
+ *   - One governance engine (server/engine.ts) owns the state machine, the role checks, the policy
+ *     gates, the mode and the in-memory maps. The artifact's separate role guard, mode service,
+ *     policy engine and store are methods and fields of that one class, so they are not boxes here.
+ *   - The AI layer exists (server/ai.ts) and is deterministic: no LLM calls, grounded in live data.
+ *   - It deploys to Render as one process, not to ECS through Forge Shipping (decisions 8 and 9).
+ *   - There is an Audit ledger page with chain verification.
  *
- * WHAT IS LEFT OUT. The CI/CD, data-flow and operations flowcharts have no C4 view; Forge Shipping
- * appears once, as the system that builds and deploys the image. App Shell and Severity Badge are
- * presentation leaves and are folded into the views that import them. The handoff's AI layer is not
- * in the artifact, so it is not in the model.
+ * SHARED, NOT DRAWN: server/domain.ts (types and enums every module imports) and web/src/ui.tsx
+ * (badges and formatters every page imports). A line to them from everything says nothing.
  *
- * THE TRACES ARE THREE BECAUSE A DYNAMIC VIEW CANNOT BRANCH. The artifact's sequence splits on mode
- * with an `alt`; here the advisory baseline and the enforced refusal are separate stories, and the
- * Security Owner's resolution is the third — the demo's villain, then its resolution.
+ * THE TRACES ARE FOUR BECAUSE A DYNAMIC VIEW CANNOT BRANCH. engine.approve() splits on mode; the
+ * advisory baseline and the enforced refusal are separate stories, the Security Owner's resolution is
+ * the third, and the assistant explaining the block is the fourth.
  */
 workspace "ShipGate" "Release governance: advisory findings become enforced blocking gates with a hash-chained evidence ledger." {
 
@@ -32,118 +32,134 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
         developer = person "Developer" "Submits changes and watches their governance status."
         approver = person "Approver" "Approves and ships changes; the default demo role."
         securityOwner = person "Security Owner" "Resolves blocking findings with a written note."
-        judge = person "Judge-Guest" "Inspects every screen and the ledger; may change nothing."
+        judge = person "Judge / Guest" "Inspects every screen and the ledger; may change nothing."
 
-        forge = softwareSystem "Forge Shipping" "Builds, scans, signs and deploys the container image through gated promotion." {
+        forge = softwareSystem "Opsera Forge" "Generated the specification and work orders WO-001 to WO-029 this app implements." {
             tags "Existing System"
         }
 
         shipgate = softwareSystem "ShipGate" "Evaluates each change against blocking policies and records every decision in a hash-chained ledger." {
 
-            spa = container "Single-page app" "Dashboard, change detail, policy list and legacy mock; owns no governance state." "React · TypeScript · Vite" {
-                header = component "App header" "The demo role switcher and the advisory/enforced toggle." "React"
-                dashboard = component "Gate dashboard" "The change queue grouped by allow and block verdict." "React"
-                detail = component "Change detail" "Findings, policy evaluation, gate verdict and the ledger timeline for one change." "React"
-                timeline = component "Ledger timeline" "Each ledger event with actor, note and its chain link." "React"
-                policyList = component "Policy list" "Active blocking policies, thresholds and owner roles." "React"
-                legacy = component "Legacy view" "A static email-and-meeting mock of CHG-1042 being rubber-stamped." "React"
-                apiClient = component "API client" "The only path from the browser to state; typed against shared schemas." "TypeScript · fetch"
+            spa = container "Web app" "Gate dashboard, change detail, policies, audit ledger and legacy mock; owns no governance state." "React 18 · TypeScript · Vite" {
+                appShell = component "App shell" "Role switcher, advisory/enforced toggle, Reset demo, and hash routing." "React" {
+                    properties {
+                        "code" "web/src/App.tsx,web/src/main.tsx"
+                    }
+                }
+                dashboard = component "Gate dashboard" "Changes grouped by allow and block verdict, and the Security Owner queue." "React" {
+                    properties {
+                        "code" "web/src/pages/Dashboard.tsx"
+                    }
+                }
+                changeDetail = component "Change detail" "Findings, AI risk summary, gate verdict, BLOCKED banner, resolution, assistant and the change's ledger." "React" {
+                    properties {
+                        "code" "web/src/pages/ChangeDetail.tsx"
+                    }
+                }
+                policies = component "Policies" "Active blocking policies, and the AI policy suggestion to adopt as a draft." "React" {
+                    properties {
+                        "code" "web/src/pages/Policies.tsx"
+                    }
+                }
+                ledgerPage = component "Audit ledger" "Every ledger event with its hash link, and whole-chain verification." "React" {
+                    properties {
+                        "code" "web/src/pages/Ledger.tsx"
+                    }
+                }
+                legacy = component "Legacy view" "A static email-and-meeting mock of CHG-1042 being rubber-stamped." "React" {
+                    properties {
+                        "code" "web/src/pages/Legacy.tsx"
+                    }
+                }
+                apiClient = component "API client" "The only path from the browser to state; typed against the server's contracts." "TypeScript · fetch" {
+                    properties {
+                        "code" "web/src/api.ts"
+                    }
+                }
             }
 
-            api = container "REST API" "Owns all mutable state, policy evaluation, transitions, reset and the ledger." "Node.js 22 · Fastify · TypeScript" {
-                changeController = component "Change controller" "Submit, approve, ship, list and detail endpoints for changes." "Fastify route"
-                findingController = component "Finding controller" "The resolve endpoint; requires a non-empty note." "Fastify route"
-                policyController = component "Policy controller" "Lists active policies." "Fastify route"
-                modeController = component "Mode controller" "Reads and sets advisory or enforced mode." "Fastify route"
-                resetController = component "Reset controller" "Restores the seed and advisory mode." "Fastify route"
-                errorHandler = component "Error handler" "Maps refusals to 400, 403, 404 and 409 envelopes." "Fastify hook"
-
-                /* CALL 1: drawn as a component because the sequence diagram routes through it. */
-                roleGuard = component "Demo role guard" "Allow-lists the selected role and refuses actions it may not take." "TypeScript"
-
-                transitionEngine = component "State transition engine" "Owns the state machine; nothing reaches SHIPPED past an open blocking finding in enforced mode." "TypeScript"
-                policyEngine = component "Policy evaluation engine" "Compares open findings against each policy's block threshold." "TypeScript"
-                modeService = component "Mode service" "Holds the current advisory or enforced mode." "TypeScript"
-                ledgerService = component "Hash ledger service" "Appends every success and refusal, each linked to the previous hash." "TypeScript"
-                hasher = component "Hash provider" "Computes the SHA-256 link for each ledger event." "node:crypto"
-                seedLoader = component "Seed data loader" "Builds CHG-1041 to CHG-1048 and the seeded policy deterministically." "TypeScript"
-                resetService = component "Reset service" "Rebuilds the store from the seed and sets advisory mode." "TypeScript"
-
-                /* CALL 3: process-local, so a component. UNTAGGED ON PURPOSE: the theme styles
-                   "Data Store" at container depth only, and on a component it put dark component
-                   text on the container fill — 3.33:1 against legibility's 4.5 floor. The theme is
-                   not ours to change here, so the box gives up its cylinder and keeps its words. */
-                store = component "In-memory store" "Changes, findings, policies, gates and ledger events, behind a store interface." "ShipGateStore · process-local maps"
+            api = container "API server" "Owns all mutable state, the policy gates, transitions, reset, the AI layer and the ledger." "Node.js 22 · Fastify 5 · TypeScript" {
+                routes = component "REST routes" "Versioned /api/v1 command endpoints and the SPA's static files; decides nothing." "Fastify" {
+                    properties {
+                        "code" "server/app.ts,server/index.ts"
+                    }
+                }
+                engine = component "Governance engine" "State machine, role checks, policy gates and mode; nothing reaches SHIPPED past an open blocking finding in enforced mode." "TypeScript" {
+                    properties {
+                        "code" "server/engine.ts"
+                    }
+                }
+                ledger = component "Hash ledger" "Appends each event with the SHA-256 of its predecessor, and verifies the whole chain." "node:crypto" {
+                    properties {
+                        "code" "server/ledger.ts"
+                    }
+                }
+                ai = component "AI layer" "Risk summaries, finding explanations, assistant answers and policy suggestions, generated deterministically from live data." "TypeScript · no LLM calls" {
+                    properties {
+                        "code" "server/ai.ts"
+                    }
+                }
+                seed = component "Seed" "CHG-1041 to CHG-1048, ten findings, the policy Secrets must not ship, and a seeded ledger." "TypeScript" {
+                    properties {
+                        "code" "server/seed.ts"
+                    }
+                }
             }
         }
 
         /* PEOPLE USE THE SCREENS. Enduring wording: what each person does with the app, not a step. */
-        developer -> header "Selects the Developer role in"
-        developer -> detail "Submits a draft change from"
+        developer -> changeDetail "Submits a draft change from"
         approver -> dashboard "Scans the queue by verdict in"
-        approver -> detail "Approves and ships changes from"
-        securityOwner -> detail "Resolves findings with a note from"
+        approver -> changeDetail "Approves, ships and asks the assistant from"
+        securityOwner -> changeDetail "Resolves blocking findings with a note from"
+        securityOwner -> policies "Adopts suggested draft policies from"
         judge -> legacy "Reads the legacy process in"
-        judge -> timeline "Inspects the evidence chain in"
+        judge -> ledgerPage "Verifies the evidence chain in"
 
-        /* INSIDE THE SPA. */
-        detail -> timeline "Renders the ledger through"
-        header -> apiClient "Reads and sets mode through"
+        /* INSIDE THE WEB APP. Every line here is an import in web/src. */
+        appShell -> dashboard "Routes to"
+        appShell -> changeDetail "Routes to"
+        appShell -> policies "Routes to"
+        appShell -> ledgerPage "Routes to"
+        appShell -> legacy "Routes to"
+        appShell -> apiClient "Reads and sets mode, and resets, through"
+        dashboard -> appShell "Reads the demo role and mode from"
+        changeDetail -> appShell "Reads and switches the demo role through"
+        policies -> appShell "Reads the demo role from"
+        ledgerPage -> appShell "Reads the demo role from"
         dashboard -> apiClient "Fetches grouped changes through"
-        detail -> apiClient "Sends governance commands through"
-        policyList -> apiClient "Fetches policies through"
+        changeDetail -> apiClient "Sends commands, questions and verifications through"
+        policies -> apiClient "Fetches policies and the suggestion through"
+        ledgerPage -> apiClient "Fetches and verifies the ledger through"
 
-        /* THE REST BOUNDARY. Every edge that crosses it carries JSON over HTTPS. */
-        apiClient -> changeController "Calls change commands and reads on" "REST JSON · HTTPS"
-        apiClient -> findingController "Calls the resolve command on" "REST JSON · HTTPS"
-        apiClient -> policyController "Reads policies from" "REST JSON · HTTPS"
-        apiClient -> modeController "Reads and sets mode on" "REST JSON · HTTPS"
-        apiClient -> resetController "Calls reset on" "REST JSON · HTTPS"
+        /* THE REST BOUNDARY. */
+        apiClient -> routes "Calls commands and reads on" "REST JSON · HTTPS"
 
-        /* CONTROLLERS DELEGATE; THEY DECIDE NOTHING. */
-        changeController -> roleGuard "Checks the demo role with"
-        findingController -> roleGuard "Checks the demo role with"
-        changeController -> transitionEngine "Requests transitions from"
-        findingController -> transitionEngine "Requests finding resolution from"
-        policyController -> policyEngine "Reads policy verdicts from"
-        modeController -> modeService "Reads and sets mode through"
-        resetController -> resetService "Triggers reset through"
-        changeController -> errorHandler "Returns refusals through"
-        findingController -> errorHandler "Returns refusals through"
+        /* INSIDE THE API SERVER. Every line here is a value import in server/, plus ai -> engine,
+           which is a type import the AI layer uses to read live state. */
+        routes -> engine "Runs every command and read through"
+        routes -> ai "Asks for summaries, explanations, answers and suggestions from"
+        engine -> ledger "Appends every transition and refusal to, and verifies the chain with" "SHA-256"
+        engine -> seed "Rebuilds its state on start and on Reset demo from"
+        seed -> ledger "Chains the seeded history with"
+        ai -> engine "Reads findings, policies, gates and the ledger from"
 
-        /* CALL 2: a role refusal is evidence too, and it never reaches the engine. */
-        changeController -> ledgerService "Appends refused-role events to"
-
-        /* THE DOMAIN. */
-        transitionEngine -> modeService "Reads advisory or enforced from"
-        transitionEngine -> policyEngine "Asks for the gate verdict from"
-        transitionEngine -> ledgerService "Appends every transition and refusal to"
-        transitionEngine -> store "Updates change and finding state in"
-        policyEngine -> store "Reads open findings and active policies from"
-        modeService -> store "Keeps the mode value in"
-        ledgerService -> hasher "Links each event to the previous hash with" "SHA-256"
-        ledgerService -> store "Appends hash-chained events to"
-        resetService -> seedLoader "Rebuilds the dataset with"
-        seedLoader -> store "Writes the deterministic seed into"
-
-        forge -> api "Builds, scans and deploys the container image of" "Docker · ECR · ECS"
+        forge -> shipgate "Generated the specification and work orders for"
 
         deploymentEnvironment "Demo" {
             deploymentNode "Visitor's browser" "No login: every visitor lands as Approver." "Browser" {
                 containerInstance spa
             }
-            deploymentNode "AWS" "The concrete default the artifact picks; no provider was specified." "Amazon Web Services" {
-                deploymentNode "ECS Fargate" "One task, one container: state lives and dies with it." "ECS" {
-                    deploymentNode "ShipGate container" "Serves the built SPA assets and the API from one process." "Docker · Node.js 22" {
-                        containerInstance api
-                    }
+            deploymentNode "Render" "Web service, free plan, built with npm run build." "PaaS · Node 22" {
+                deploymentNode "shipgate" "One long-running process serves dist/ and the API; health check /api/v1/health." "tsx server/index.ts" {
+                    containerInstance api
                 }
             }
         }
     }
 
     views {
-        systemContext shipgate "Context" "Who uses ShipGate, and the one system that ships it." {
+        systemContext shipgate "Context" "Who uses ShipGate, and the platform that generated its specification." {
             properties {
                 "structurizr.tooltips" "true"
             }
@@ -151,7 +167,7 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
             autoLayout lr 500 400
         }
 
-        container shipgate "Containers" "The browser app owns no state; the API owns all of it." {
+        container shipgate "Containers" "The browser app owns no state; the API server owns all of it." {
             properties {
                 "structurizr.tooltips" "true"
             }
@@ -159,7 +175,7 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
             autoLayout lr 500 400
         }
 
-        component spa "Screens" "The screens and the one client every screen talks through." {
+        component spa "Screens" "The app shell routes to five screens, and every screen reaches state through one client." {
             properties {
                 "structurizr.tooltips" "true"
             }
@@ -167,7 +183,7 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
             autoLayout lr 500 400
         }
 
-        component api "Engine" "Controllers delegate; the transition engine decides; the ledger records both outcomes." {
+        component api "Engine" "Routes decide nothing; the engine decides; the ledger records both outcomes." {
             properties {
                 "structurizr.tooltips" "true"
             }
@@ -180,38 +196,27 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
             properties {
                 "structurizr.tooltips" "true"
             }
-            approver -> spa "Approves CHG-1042 in advisory mode"
-            spa -> changeController "POST /api/v1/changes/CHG-1042/approve"
-            changeController -> roleGuard "Confirms the Approver role"
-            changeController -> transitionEngine "Requests IN_REVIEW to APPROVED"
-            transitionEngine -> modeService "Reads advisory"
-            transitionEngine -> policyEngine "Gets a block verdict on the CRITICAL finding"
-            transitionEngine -> store "Moves CHG-1042 to APPROVED anyway"
-            transitionEngine -> ledgerService "Records an approval with an open CRITICAL finding"
-            approver -> spa "Ships CHG-1042"
-            spa -> changeController "POST /api/v1/changes/CHG-1042/ship"
-            changeController -> transitionEngine "Requests APPROVED to SHIPPED"
-            transitionEngine -> store "Moves CHG-1042 to SHIPPED"
-            transitionEngine -> ledgerService "Records SHIPPED under advisory mode"
+            approver -> spa "Clicks Approve on CHG-1042 in advisory mode"
+            spa -> routes "POST /api/v1/changes/CHG-1042/approve"
+            routes -> engine "approve(): Approver, IN_REVIEW, gate blocks, mode advisory"
+            engine -> ledger "Appends APPROVED as advisory_exception: open CRITICAL secret handling"
+            approver -> spa "Clicks Ship"
+            spa -> routes "POST /api/v1/changes/CHG-1042/ship"
+            routes -> engine "ship(): re-evaluates the gate, still advisory"
+            engine -> ledger "Appends SHIPPED as advisory_exception"
             autoLayout lr 500 400
         }
 
         /* THE TREATMENT. Enforced mode: the identical approval is refused, and the refusal is evidence. */
-        dynamic api "Enforced" "Treatment: the identical approval is refused, cited and recorded." {
+        dynamic api "Enforced" "Treatment: the identical approval is refused, cited, routed and recorded." {
             properties {
                 "structurizr.tooltips" "true"
             }
-            approver -> spa "Approves CHG-1042 in enforced mode"
-            spa -> changeController "POST /api/v1/changes/CHG-1042/approve"
-            changeController -> roleGuard "Confirms the Approver role"
-            changeController -> transitionEngine "Requests IN_REVIEW to APPROVED"
-            transitionEngine -> modeService "Reads enforced"
-            transitionEngine -> policyEngine "Asks for the gate verdict"
-            policyEngine -> store "Finds the open CRITICAL secret-handling finding"
-            transitionEngine -> store "Refuses the approval and moves CHG-1042 to BLOCKED"
-            transitionEngine -> ledgerService "Records the refused approval, citing Secrets must not ship"
-            ledgerService -> hasher "Links it to the previous event"
-            changeController -> errorHandler "Returns 409 with the cited policy"
+            approver -> spa "Clicks Approve on CHG-1042 in enforced mode"
+            spa -> routes "POST /api/v1/changes/CHG-1042/approve"
+            routes -> engine "approve(): Secrets must not ship blocks on F-2001"
+            engine -> ledger "Appends the refusal: IN_REVIEW to BLOCKED, routed to Security Owner"
+            routes -> spa "409 POLICY_BLOCKED with the cited policy and the open finding"
             autoLayout lr 500 400
         }
 
@@ -220,22 +225,31 @@ workspace "ShipGate" "Release governance: advisory findings become enforced bloc
             properties {
                 "structurizr.tooltips" "true"
             }
-            securityOwner -> spa "Resolves the finding: credential rotated"
-            spa -> findingController "POST /api/v1/findings/{id}/resolve"
-            findingController -> roleGuard "Confirms the Security Owner role"
-            findingController -> transitionEngine "Requests resolution"
-            transitionEngine -> store "Marks the finding resolved and CHG-1042 RESOLVED"
-            transitionEngine -> ledgerService "Records RESOLVED with the owner's note"
-            approver -> spa "Re-approves and ships CHG-1042"
-            spa -> changeController "POST approve, then POST ship"
-            changeController -> transitionEngine "Requests APPROVED, then SHIPPED"
-            transitionEngine -> policyEngine "Gets an allow verdict"
-            transitionEngine -> store "Moves CHG-1042 to SHIPPED"
-            transitionEngine -> ledgerService "Records SHIPPED, chained after BLOCKED and RESOLVED"
+            securityOwner -> spa "Opens CHG-1042 as Security Owner and resolves F-2001 with a note"
+            spa -> routes "POST /api/v1/findings/F-2001/resolve"
+            routes -> engine "resolveFinding(): note required, gate re-evaluated"
+            engine -> ledger "Appends the resolution, then BLOCKED to RESOLVED"
+            approver -> spa "Re-approves, then ships"
+            spa -> routes "POST approve, then POST ship"
+            routes -> engine "approve() and ship(): every gate allows"
+            engine -> ledger "Appends APPROVED, then SHIPPED, chained after BLOCKED and RESOLVED"
             autoLayout lr 500 400
         }
 
-        deployment shipgate "Demo" "Deployed" "One container on ECS; the SPA runs in the visitor's browser." {
+        /* THE EXPLANATION. The assistant reads the evidence; the gate makes the decision. */
+        dynamic api "Explain" "The assistant answers why CHG-1042 is blocked, citing the live finding, policy and ledger." {
+            properties {
+                "structurizr.tooltips" "true"
+            }
+            approver -> spa "Asks: why is CHG-1042 blocked?"
+            spa -> routes "POST /api/v1/assistant"
+            routes -> ai "answer(CHG-1042, question)"
+            ai -> engine "Reads the blocking finding, the policy and the ledger"
+            routes -> spa "An answer citing F-2001 and Secrets must not ship"
+            autoLayout lr 500 400
+        }
+
+        deployment shipgate "Demo" "Deployed" "One process on Render; the SPA runs in the visitor's browser." {
             include *
             autoLayout lr 500 400
         }

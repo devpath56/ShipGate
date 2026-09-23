@@ -8,12 +8,15 @@
 # model red with no change in this repo. Bump DRAWING_OFFICE_REF on purpose.
 name: architecture
 
+#
+# CODE PUSHES RUN IT TOO. A change to server/ or web/src/ can leave the model describing parts that no
+# longer exist, so architecture/drift.mjs compares the two first and fails the run on any mismatch.
 on:
   push:
     branches: [main]
-    paths: ["architecture/**", ".github/workflows/architecture.yml"]
+    paths: ["architecture/**", "server/**", "web/src/**", ".github/workflows/architecture.yml"]
   pull_request:
-    paths: ["architecture/**", ".github/workflows/architecture.yml"]
+    paths: ["architecture/**", "server/**", "web/src/**", ".github/workflows/architecture.yml"]
   workflow_dispatch:
 
 permissions:
@@ -62,6 +65,11 @@ jobs:
           printf '#!/bin/sh\nexec "%s/structurizr/structurizr.sh" "$@"\n' "$HOME" > "$HOME/bin/structurizr-cli"
           chmod +x "$HOME/bin/structurizr-cli"
           echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Model and code agree
+        run: |
+          node shipgate/architecture/drift.mjs --negative
+          node shipgate/architecture/drift.mjs
 
       - name: Build the model
         run: node drawing-office/tools/build.mjs --root shipgate

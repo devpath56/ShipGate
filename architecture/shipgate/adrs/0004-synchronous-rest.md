@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -18,4 +18,7 @@ Every mutation is a REST command, and the client re-fetches after each one.
 
 Rejected: WebSockets or SSE (unneeded at this scale) and GraphQL (adds schema complexity). No push updates, so concurrent viewers may need to refresh.
 
-Source: the decision table in Forge's ShipGate architecture artifact, 2026-09-23.
+
+## In the code
+
+web/src/api.ts calls /api/v1 with fetch and each page re-fetches after an action; there is no socket or GraphQL layer.
