@@ -22,6 +22,12 @@ const AppCtx = createContext<Ctx>(null as unknown as Ctx);
 export const useApp = () => useContext(AppCtx);
 
 const ROLES: Role[] = ['Developer', 'Approver', 'Security Owner', 'Judge / Guest'];
+const ROLE_HELP: Record<Role, string> = {
+  Developer: 'can submit DRAFT changes for review.',
+  Approver: 'can approve and ship changes the gate allows.',
+  'Security Owner': 'can resolve findings (a written note is required).',
+  'Judge / Guest': 'view-only: can inspect everything, cannot change state or mode.',
+};
 
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash || '#/');
@@ -86,12 +92,16 @@ export default function App() {
   else if (route === '/policies') page = <Policies />;
   else if (route === '/ledger') page = <LedgerPage />;
   else if (route === '/legacy') page = <Legacy />;
-  else page = <Dashboard />;
+  else if (route === '/' || route === '') page = <Dashboard />;
+  else page = <div className="empty">No page at <span className="mono">{route}</span>. <a href="#/">Go to the gate dashboard</a>.</div>;
 
   return (
     <AppCtx.Provider value={{ role, mode, tick, refresh, toast, setRole }}>
       <div className="demo-strip">
         <span>Demo environment · non-production · no login required</span>
+        <span className="perm-help">
+          <strong>{role}</strong>{' — '}{ROLE_HELP[role]} <span className="muted">· Role switcher is a demo control, not authentication.</span>
+        </span>
         <span className="sim-label">Simulated findings feed</span>
       </div>
       <header className="topbar">
@@ -106,9 +116,10 @@ export default function App() {
             {nav.map((n) => <a key={n.href} href={n.href} className={n.active ? 'active' : ''}>{n.label}</a>)}
           </nav>
           <div className="controls">
-            <div className={`mode-toggle ${mode}`} role="group" aria-label="Enforcement mode">
-              <button className={mode === 'advisory' ? 'on' : ''} onClick={() => changeMode('advisory')} aria-pressed={mode === 'advisory'}>Advisory</button>
-              <button className={mode === 'enforced' ? 'on' : ''} onClick={() => changeMode('enforced')} aria-pressed={mode === 'enforced'}>Enforced</button>
+            <div className={`mode-toggle ${mode}`} role="group" aria-label="Enforcement mode (demo control)"
+              title={role === 'Judge / Guest' ? 'Judge / Guest is view-only — switch role to change the mode' : 'Demo control: advisory = legacy baseline, enforced = binding gates'}>
+              <button className={mode === 'advisory' ? 'on' : ''} disabled={role === 'Judge / Guest'} onClick={() => changeMode('advisory')} aria-pressed={mode === 'advisory'}>Advisory</button>
+              <button className={mode === 'enforced' ? 'on' : ''} disabled={role === 'Judge / Guest'} onClick={() => changeMode('enforced')} aria-pressed={mode === 'enforced'}>Enforced</button>
             </div>
             <label className="role-select">
               <span className="sr-only">Demo role (not authentication)</span>

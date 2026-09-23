@@ -35,7 +35,10 @@ export interface ChainVerification {
   message: string;
 }
 
-export function verifyChain(ledger: LedgerEvent[]): ChainVerification {
+/** The head anchor is recorded outside the event array; comparing against it catches a deleted tail. */
+export interface HeadAnchor { seq: number; hash: string }
+
+export function verifyChain(ledger: LedgerEvent[], anchor?: HeadAnchor): ChainVerification {
   let prevHash = GENESIS_HASH;
   for (const e of ledger) {
     const { hash, ...rest } = e;
@@ -48,6 +51,15 @@ export function verifyChain(ledger: LedgerEvent[]): ChainVerification {
       };
     }
     prevHash = hash;
+  }
+  const last = ledger[ledger.length - 1];
+  if (anchor && (!last || last.seq !== anchor.seq || last.hash !== anchor.hash)) {
+    return {
+      intact: false,
+      checked: ledger.length,
+      broken_at: (last?.seq ?? 0) + 1,
+      message: `Chain truncated: the recorded head is event #${anchor.seq} (${anchor.hash.slice(0, 8)}…) but the ledger ends at #${last?.seq ?? 0}. ${anchor.seq - (last?.seq ?? 0)} event(s) are missing.`,
+    };
   }
   return {
     intact: true,

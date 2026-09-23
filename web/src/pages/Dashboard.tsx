@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ChangeView } from '../api';
 import { useApp } from '../App';
-import { AiLabel, SeverityBadge, Skeleton, StatePill } from '../ui';
+import { AiLabel, SeverityBadge, SimLabel, Skeleton, StatePill } from '../ui';
 
 // Gate dashboard (WO-022): queue grouped by gate verdict, exception counts.
 
@@ -17,7 +17,7 @@ function ChangeCard({ c }: { c: ChangeView }) {
         {c.top_severity ? <SeverityBadge severity={c.top_severity} /> : <span className="clean">✓ No open findings</span>}
         {c.open_findings > 0 && <span className="muted small">{c.open_findings} open</span>}
         {c.routed_to && <span className="routed">→ {c.routed_to}</span>}
-        {c.shipped_with_exception && <span className="exception-badge">Shipped with open CRITICAL (advisory)</span>}
+        {c.shipped_with_exception && <span className="exception-badge">Shipped with an open blocking finding (advisory)</span>}
       </div>
       <div className="cc-ai"><AiLabel text="AI" /> {c.ai_one_line}</div>
     </a>
@@ -74,7 +74,7 @@ export function Dashboard() {
       <div className="grid-2">
         <section className="column">
           <div className="col-head">
-            <h2><span className="dot block" /> Blocked by policy</h2>
+            <h2><span className="dot block" /> Blocked by policy <SimLabel /></h2>
             <span className="count">{blocked.length} · exceptions to act on</span>
           </div>
           {blocked.length ? blocked.map((c) => <ChangeCard key={c.id} c={c} />)

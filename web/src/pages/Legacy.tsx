@@ -4,7 +4,7 @@ const thread = [
   { from: 'Marcus Tran', to: 'change-advisory-board@corp', time: 'Tue 4:12 PM', subject: 'CHG-1042 — Add vendor export API — please approve for Thursday window',
     body: 'Hi all, requesting approval for CHG-1042 (vendor export API). Spec + handler were generated with the new tooling. Scanner output attached (3 findings, see PDF). Need this out Thursday for procurement.', attach: 'security-scan-CHG-1042.pdf (412 KB)' },
   { from: 'Dana Whitfield (Security)', to: 'change-advisory-board@corp', time: 'Tue 6:47 PM', subject: 'RE: CHG-1042 …',
-    body: 'Flagging finding #1 in the PDF — looks like a live credential in the generated spec? Can someone confirm before this goes?', attach: null },
+    body: 'Flagging finding #1 in the PDF — CRITICAL secret-handling: "live credential detected in generated specification". Can someone confirm before this goes?', attach: null },
   { from: 'Rob Keller (Approver)', to: 'change-advisory-board@corp', time: 'Wed 9:03 AM', subject: 'RE: RE: CHG-1042 …',
     body: 'LGTM, approved — findings are informational. We can clean up the spec after launch. Adding to Thursday\'s list.', attach: null },
   { from: 'CAB Bot', to: 'change-advisory-board@corp', time: 'Thu 10:30 AM', subject: 'RE: RE: RE: CHG-1042 …',
@@ -42,7 +42,7 @@ export function Legacy() {
           <h4>Notes</h4>
           <ul>
             <li>31 changes approved as a batch.</li>
-            <li className="stamp">CHG-1042 “Add vendor export API” — approved. Security findings noted as informational (CRITICAL: credential in spec). No owner assigned.</li>
+            <li className="stamp">CHG-1042 “Add vendor export API” — approved. Security findings noted as informational (CRITICAL secret-handling: live credential detected in generated specification). No owner assigned.</li>
             <li>Dana to follow up on scanner findings “after launch”.</li>
           </ul>
           <h4>Action items</h4>

@@ -8,9 +8,11 @@ import { AiLabel, SeverityBadge, Skeleton } from '../ui';
 export function Policies() {
   const { tick, toast, refresh } = useApp();
   const [data, setData] = useState<{ policies: Policy[]; suggestion: Suggestion | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.policies().then(setData).catch((e) => toast('error', e.message)); }, [tick, toast]);
+  useEffect(() => { api.policies().then((d) => { setData(d); setError(null); }).catch((e) => setError(e.message)); }, [tick]);
 
+  if (error) return <div className="empty">Could not load policies: {error}. Try <strong>Reset demo</strong>.</div>;
   if (!data) return <div className="panel"><Skeleton lines={4} /></div>;
   const active = data.policies.filter((p) => p.status === 'active');
   const drafts = data.policies.filter((p) => p.status === 'draft');

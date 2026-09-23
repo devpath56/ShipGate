@@ -87,3 +87,36 @@ describe('assistant intent routing', () => {
     expect(a).toMatch(/Rotate the credential/);
   });
 });
+
+describe('audit fixes', () => {
+  it('detects a deleted ledger tail (truncation) via the head anchor', () => {
+    const e = new ShipGateEngine(fixedClock);
+    e.setMode('enforced', 'Approver');
+    expect(() => e.approve('CHG-1042', 'Approver')).toThrow();
+    e.ledger.pop();
+    const v = e.verify();
+    expect(v.intact).toBe(false);
+    expect(v.message).toMatch(/truncated/);
+  });
+
+  it('Judge / Guest cannot change the enforcement mode', () => {
+    const e = new ShipGateEngine(fixedClock);
+    expect(() => e.setMode('enforced', 'Judge / Guest')).toThrow(/view-only/);
+    expect(e.mode).toBe('advisory');
+  });
+
+  it.each(['how do I cook pasta?', 'who won the world cup?', 'what is the capital of France?', 'tell me a joke'])(
+    'assistant declines off-topic question: %s',
+    (q) => {
+      const e = new ShipGateEngine(fixedClock);
+      expect(answer(e, 'CHG-1042', q)).toMatch(/I can only answer about this change's governance data/);
+    },
+  );
+
+  it('assistant answers "what is waiting on the Security Owner?" after an enforced refusal', () => {
+    const e = new ShipGateEngine(fixedClock);
+    e.setMode('enforced', 'Approver');
+    expect(() => e.approve('CHG-1042', 'Approver')).toThrow();
+    expect(answer(e, 'CHG-1042', 'What is waiting on the Security Owner?')).toMatch(/CHG-1042.*F-2001 CRITICAL/);
+  });
+});

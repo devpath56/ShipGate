@@ -2,7 +2,7 @@ import {
   type Change, type ChangeState, type Finding, type Gate, type LedgerEvent, type Mode,
   type Policy, type Role, DomainError, MODES, ROLES, severityRank,
 } from './domain.js';
-import { appendEvent, verifyChain } from './ledger.js';
+import { appendEvent, type HeadAnchor, verifyChain } from './ledger.js';
 import { buildSeed } from './seed.js';
 
 // Backend-owned governance engine (WO-003, WO-006, WO-008, WO-010, WO-011).
@@ -28,6 +28,8 @@ export class ShipGateEngine {
   ledger: LedgerEvent[] = [];
   mode: Mode = 'advisory';
   dismissedSuggestions = new Set<string>();
+  /** Head of the chain, held apart from the event array so a deleted tail is detectable. */
+  head: HeadAnchor = { seq: 0, hash: '' };
   private clock: () => Date;
 
   constructor(clock: () => Date = () => new Date()) {
@@ -41,8 +43,16 @@ export class ShipGateEngine {
     this.findings = new Map(seed.findings.map((f) => [f.id, f]));
     this.policies = new Map(seed.policies.map((p) => [p.id, p]));
     this.ledger = seed.ledger;
+    const last = this.ledger[this.ledger.length - 1];
+    this.head = { seq: last.seq, hash: last.hash };
     this.mode = 'advisory';
     this.dismissedSuggestions = new Set();
+  }
+
+  private append(body: Parameters<typeof appendEvent>[1]): LedgerEvent {
+    const event = appendEvent(this.ledger, body);
+    this.head = { seq: event.seq, hash: event.hash };
+    return event;
   }
 
   private now() {
@@ -111,7 +121,7 @@ export class ShipGateEngine {
   }
 
   verify() {
-    return verifyChain(this.ledger);
+    return verifyChain(this.ledger, this.head);
   }
 
   // ---- validation ------------------------------------------------------------
@@ -138,7 +148,7 @@ export class ShipGateEngine {
   ): LedgerEvent {
     const from = change.state;
     change.state = to;
-    return appendEvent(this.ledger, {
+    return this.append({
       change: change.id, action, from_state: from, to_state: to,
       actor, outcome, timestamp: this.now(), note,
     });
@@ -146,7 +156,7 @@ export class ShipGateEngine {
 
   /** Refused attempts are evidence too: append, then throw with the event attached. */
   private refuse(change: Change, action: string, actor: Role, status: number, code: string, message: string): never {
-    const event = appendEvent(this.ledger, {
+    const event = this.append({
       change: change.id, action, from_state: change.state, to_state: change.state,
       actor, outcome: 'refused', timestamp: this.now(), note: `REFUSED: ${message}`,
     });
@@ -192,7 +202,7 @@ export class ShipGateEngine {
       const from = change.state;
       change.state = 'BLOCKED';
       change.routed_to = owner;
-      const event = appendEvent(this.ledger, {
+      const event = this.append({
         change: change.id, action: 'approve', from_state: from, to_state: 'BLOCKED',
         actor, outcome: 'refused', timestamp: this.now(), note: reason,
       });
@@ -228,7 +238,7 @@ export class ShipGateEngine {
       const reason = `Shipment refused — ${this.describeBlock(blocking)}. Routed to ${owner}.`;
       change.state = 'BLOCKED';
       change.routed_to = owner;
-      const event = appendEvent(this.ledger, {
+      const event = this.append({
         change: change.id, action: 'ship', from_state: 'APPROVED', to_state: 'BLOCKED',
         actor, outcome: 'refused', timestamp: this.now(), note: reason,
       });
@@ -269,7 +279,7 @@ export class ShipGateEngine {
     finding.status = 'resolved';
     finding.resolution_note = note;
     finding.resolved_by = actor;
-    let event = appendEvent(this.ledger, {
+    let event = this.append({
       change: change.id, action: 'resolve_finding', from_state: change.state, to_state: change.state,
       actor, outcome: 'success', timestamp: this.now(),
       note: `Resolved ${finding.id} (${finding.severity.toUpperCase()} ${finding.category}): ${note}`,
@@ -285,10 +295,13 @@ export class ShipGateEngine {
     return { ok: true, outcome: 'success', message, change, event };
   }
 
-  setMode(mode: Mode, actor: Role): LedgerEvent {
+  setMode(mode: Mode, actor: Role | 'Demo operator'): LedgerEvent {
+    if (actor === 'Judge / Guest') {
+      throw new DomainError(403, 'ROLE_FORBIDDEN', 'Judge / Guest is view-only and cannot change the enforcement mode. Switch to another demo role.');
+    }
     const prev = this.mode;
     this.mode = mode;
-    return appendEvent(this.ledger, {
+    return this.append({
       change: null, action: 'set_mode', from_state: null, to_state: null, actor,
       outcome: 'system', timestamp: this.now(), note: `Enforcement mode changed: ${prev} → ${mode}.`,
     });
@@ -300,7 +313,7 @@ export class ShipGateEngine {
     if (this.policies.has(p.id)) throw new DomainError(409, 'ALREADY_EXISTS', 'Policy already adopted.');
     const policy: Policy = { ...p, status: 'draft' };
     this.policies.set(policy.id, policy);
-    appendEvent(this.ledger, {
+    this.append({
       change: null, action: 'adopt_draft_policy', from_state: null, to_state: null, actor: 'Security Owner',
       outcome: 'system', timestamp: this.now(), note: `Draft policy "${policy.name}" added from AI suggestion (not enforcing).`,
     });

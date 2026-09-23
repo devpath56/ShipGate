@@ -13,6 +13,29 @@ import { answer, explainFinding, policySuggestion, riskSummary } from './ai.js';
 export function buildApp(engine = new ShipGateEngine()) {
   const app = Fastify({ logger: false });
 
+  // Accept an empty JSON body (e.g. `curl -X POST .../reset`) and keep every
+  // error — including parser errors — inside the standard response envelope.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    const text = typeof body === 'string' ? body.trim() : '';
+    if (!text) return done(null, {});
+    try { done(null, JSON.parse(text)); } catch {
+      done(Object.assign(new Error('Request body is not valid JSON.'), { statusCode: 400, code: 'INVALID_JSON' }), undefined);
+    }
+  });
+  app.setErrorHandler((err: Error & { statusCode?: number; code?: string }, _req, reply) => {
+    const status = err.statusCode && err.statusCode < 500 ? err.statusCode : 500;
+    reply.status(status).send({
+      ok: false,
+      error: { code: status === 500 ? 'INTERNAL' : (err.code ?? 'BAD_REQUEST'), message: status === 500 ? 'Unexpected error — try Reset demo.' : err.message },
+    });
+  });
+
+  const CHANGE_ID = /^CHG-\d{4}$/;
+  const FINDING_ID = /^F-\d{4}$/;
+  const checkId = (id: string, re: RegExp, kind: string) => {
+    if (!re.test(id)) throw new DomainError(400, 'VALIDATION_ERROR', `Invalid ${kind} id "${id.slice(0, 40)}".`);
+  };
+
   const roleOf = (body: unknown): Role => ShipGateEngine.parseRole((body as { role?: unknown })?.role);
 
   const fail = (reply: FastifyReply, err: unknown) => {
@@ -37,14 +60,15 @@ export function buildApp(engine = new ShipGateEngine()) {
     };
   };
 
-  app.get('/api/v1/health', async () => ({ ok: true }));
+  app.get('/api/v1/health', async () => ({ ok: true, data: { status: 'ok', mode: engine.mode, events: engine.ledger.length } }));
 
   app.get('/api/v1/mode', async () => ({ ok: true, data: { mode: engine.mode } }));
   app.post('/api/v1/mode', async (req, reply) => {
     try {
       const body = req.body as { mode?: unknown; role?: unknown };
       const mode = ShipGateEngine.parseMode(body?.mode);
-      const event = engine.setMode(mode, roleOf(body));
+      const actor = body?.role === undefined ? 'Demo operator' : roleOf(body);
+      const event = engine.setMode(mode, actor);
       return { ok: true, data: { mode }, event };
     } catch (err) { return fail(reply, err); }
   });
@@ -59,6 +83,7 @@ export function buildApp(engine = new ShipGateEngine()) {
   app.get('/api/v1/changes/:id', async (req, reply) => {
     try {
       const { id } = req.params as { id: string };
+      checkId(id, CHANGE_ID, 'change');
       const view = changeView(id);
       const blocking = engine.blockingFor(id);
       return {
@@ -69,7 +94,11 @@ export function buildApp(engine = new ShipGateEngine()) {
           policies: engine.activePolicies(),
           gates: engine.gatesFor(id),
           blocking,
-          ledger: engine.ledgerFor(id),
+          ledger: engine.ledgerFor(id).map((e) => {
+            const prev = engine.ledger[e.seq - 2];
+            return { ...e, prev_seq: prev ? prev.seq : 0, link_ok: e.prev_hash === (prev ? prev.hash : '0'.repeat(64)) };
+          }),
+          head: engine.head,
           ai_summary: riskSummary(engine, id),
           mode: engine.mode,
         },
@@ -81,6 +110,7 @@ export function buildApp(engine = new ShipGateEngine()) {
     app.post(`/api/v1/changes/:id/${action}`, async (req, reply) => {
       try {
         const { id } = req.params as { id: string };
+        checkId(id, CHANGE_ID, 'change');
         const result = engine[action](id, roleOf(req.body));
         return { ok: true, data: result };
       } catch (err) { return fail(reply, err); }
@@ -90,6 +120,7 @@ export function buildApp(engine = new ShipGateEngine()) {
   app.post('/api/v1/findings/:id/resolve', async (req, reply) => {
     try {
       const { id } = req.params as { id: string };
+      checkId(id, FINDING_ID, 'finding');
       const body = req.body as { note?: unknown };
       return { ok: true, data: engine.resolveFinding(id, roleOf(req.body), body?.note) };
     } catch (err) { return fail(reply, err); }
@@ -126,13 +157,12 @@ export function buildApp(engine = new ShipGateEngine()) {
 
   // Serve the built SPA in production.
   const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
-  if (existsSync(dist)) {
-    app.register(fastifyStatic, { root: dist });
-    app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/api/')) return reply.status(404).send({ ok: false, error: { code: 'NOT_FOUND', message: 'No such endpoint.' } });
-      return reply.sendFile('index.html');
-    });
-  }
+  const hasDist = existsSync(dist);
+  if (hasDist) app.register(fastifyStatic, { root: dist });
+  app.setNotFoundHandler((req, reply) => {
+    if (req.url.startsWith('/api/') || !hasDist) return reply.status(404).send({ ok: false, error: { code: 'NOT_FOUND', message: 'No such endpoint.' } });
+    return reply.sendFile('index.html');
+  });
 
   return app;
 }

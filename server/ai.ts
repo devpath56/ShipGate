@@ -110,9 +110,16 @@ export function policySuggestion(engine: ShipGateEngine): (Omit<Policy, 'status'
 
 // ---- conversational assistant ------------------------------------------------------
 
+const OUT_OF_SCOPE = "I can only answer about this change's governance data — its findings, policies, gate verdict and ledger. Try \"why is it blocked?\", \"what would unblock it?\" or \"which findings are still open?\".";
+
 export function answer(engine: ShipGateEngine, contextChangeId: string | null, question: string): string {
   const q = question.toLowerCase().trim();
   if (!q) return 'Ask me about a change — for example "why is CHG-1042 blocked?" or "what would unblock it?".';
+
+  // Scope guard: answer only questions about governance data. Without this,
+  // generic words ("how do", "who") would route off-topic questions to an answer.
+  const GOVERNANCE = /chg-\d{4}|\bchange\b|block|finding|polic|gate|ledger|audit|risk|ship|approv|resolv|security owner|queue|routed|owner|remediat|fix\b|credential|secret|mode|enforc|advisory|verdict|status|state|history|timeline|open\b|this one|\bit\b|safe/;
+  if (!GOVERNANCE.test(q)) return OUT_OF_SCOPE;
 
   const mentioned = q.match(/chg-\d{4}/i)?.[0]?.toUpperCase();
   const targetId = mentioned ?? contextChangeId;
@@ -135,7 +142,7 @@ export function answer(engine: ShipGateEngine, contextChangeId: string | null, q
   const last = events[events.length - 1];
   const list = (fs: Finding[]) => fs.map((f) => `${f.id} ${f.severity.toUpperCase()} ${f.category} — "${f.title}"`).join('; ');
 
-  const wantsUnblock = /unblock|fix|what would|next step|how do/.test(q);
+  const wantsUnblock = /unblock|\bfix|remediat|what would|next step|how (do|can) (i|we) (ship|resolve|approve|clear)/.test(q);
 
   if (!wantsUnblock && /why|blocked|block/.test(q)) {
     if (!blocking.length) {
@@ -157,7 +164,7 @@ export function answer(engine: ShipGateEngine, contextChangeId: string | null, q
     return open.length ? `${change.id} has ${open.length} open finding(s): ${list(open)}.` : `${change.id} has no open findings.`;
   }
 
-  if (/history|ledger|who|timeline|audit/.test(q)) {
+  if (/history|ledger|who (approved|shipped|resolved|submitted|refused)|timeline|audit/.test(q)) {
     return `${change.id} has ${events.length} ledger events. Latest: #${last?.seq} ${last?.action} by ${last?.actor} (${last?.from_state} → ${last?.to_state}) — "${last?.note}". Chain status: ${engine.verify().message}`;
   }
 
@@ -169,5 +176,5 @@ export function answer(engine: ShipGateEngine, contextChangeId: string | null, q
     return `${change.id} is ${change.state}; gate verdict ${engine.verdictFor(targetId).toUpperCase()}; mode ${engine.mode}.`;
   }
 
-  return "I can only answer about this change's governance data — try \"why is it blocked?\", \"what would unblock it?\", \"which findings are still open?\" or \"summarize the risk\".";
+  return OUT_OF_SCOPE;
 }

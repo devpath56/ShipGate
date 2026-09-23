@@ -1,9 +1,8 @@
 // Typed ShipGate API client (WO-014). The only path the UI has to state.
 
-export type Role = 'Developer' | 'Approver' | 'Security Owner' | 'Judge / Guest';
-export type Mode = 'advisory' | 'enforced';
-export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
-export type ChangeState = 'DRAFT' | 'IN_REVIEW' | 'BLOCKED' | 'RESOLVED' | 'APPROVED' | 'SHIPPED';
+// Enums come from the one shared domain contract (WO-001) — never re-declared here.
+import type { ChangeState, Mode, Role, Severity } from '../../server/domain';
+export type { ChangeState, Mode, Role, Severity };
 
 export interface ChangeView {
   id: string; title: string; source: string; summary: string; state: ChangeState; author: string;
@@ -30,7 +29,9 @@ export interface LedgerEvent {
 }
 export interface ChangeDetail {
   change: ChangeView; findings: Finding[]; policies: Policy[]; gates: Gate[];
-  blocking: { policy: Policy; findings: Finding[] }[]; ledger: LedgerEvent[];
+  blocking: { policy: Policy; findings: Finding[] }[];
+  ledger: (LedgerEvent & { prev_seq: number; link_ok: boolean })[];
+  head: { seq: number; hash: string };
   ai_summary: { headline: string; oneLine: string; sentences: string[] }; mode: Mode;
 }
 export interface Verification { intact: boolean; checked: number; broken_at: number | null; message: string }
